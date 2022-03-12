@@ -41,5 +41,7 @@ parser.add_boolean('--export-srcmap', dest='export_srcmap', default=True,
                    help="Store the srcmap for the smart contract in output directory as `output.srcmap`.")
 parser.add_boolean('--export-asm', dest='export_asm', default=True,
                    help="Store the ASM for the smart contract in output directory as `output.asm`.")
+parser.add_boolean('--export-cfg', dest='export_cfg__dot', default=True,
+                   help="Store the CFG for the smart contract in output directory as `cfg.dot`.")
 
 args = parser.parse_args()

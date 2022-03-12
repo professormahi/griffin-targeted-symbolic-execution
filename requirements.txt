@@ -1,5 +1,11 @@
+# Solidity
 evm-cfg-builder==0.3.1
 solc-select==0.2.1
 ipython==8.1.1
 py-solc-x==1.1.1
 pyevmasm==0.2.3
+slither-analyzer==0.8.2
+
+# Networkx
+networkx==2.7.1
+pydot==1.4.2

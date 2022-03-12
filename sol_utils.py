@@ -6,8 +6,12 @@ from typing import Union
 import solcx
 from evm_cfg_builder import CFG as EVMCFG
 from pyevmasm import disassemble_hex
+from slither.core.cfg.node import NodeType as SlitherNodeType
+from slither.slither import Slither
 from solc_select import solc_select
+import networkx as nx
 
+from slither_utils import escape_expression
 from utils import disabled_stdout, class_property
 
 PRAGMA_SOLIDITY_VERSION_REGEX = re.compile(r'^pragma\ssolidity\s\^([\d.]+);$')
@@ -138,3 +142,45 @@ class SolFile:
     @cached_property
     def asm(self) -> dict:
         return self.__get_compiled_param('asm')
+
+    @cached_property
+    def slither(self) -> Slither:
+        return Slither(self.path)
+
+    @cached_property
+    def cfg(self) -> nx.MultiDiGraph:
+        cfg_x = nx.MultiDiGraph()
+
+        for func in self.slither.contracts[0].functions:  # TODO Support more contracts
+            # Traverse all nodes and add to networkx version
+            for node in func.nodes:
+                cfg_x.add_node(
+                    f"{func.name}_{node.node_id}",
+                    label=f"{func.name}_{node.node_id}|node_type = {node.type}\n\nexpression ="
+                          f" {escape_expression(node.expression)}",
+                    shape="record"
+                )
+
+            # Add edges
+            for node in func.nodes:
+                if node.type in [SlitherNodeType.IF, SlitherNodeType.IFLOOP]:
+                    if node.son_true:
+                        cfg_x.add_edge(
+                            u_for_edge=f"{func.name}_{node.node_id}",
+                            v_for_edge=f"{func.name}_{node.son_true.node_id}",
+                            label="True"
+                        )
+                    if node.son_false:
+                        cfg_x.add_edge(
+                            u_for_edge=f"{func.name}_{node.node_id}",
+                            v_for_edge=f"{func.name}_{node.son_false.node_id}",
+                            label="False"
+                        )
+                else:
+                    for son in node.sons:
+                        cfg_x.add_edge(
+                            u_for_edge=f"{func.name}_{node.node_id}",
+                            v_for_edge=f"{func.name}_{son.node_id}",
+                        )
+
+        return cfg_x
