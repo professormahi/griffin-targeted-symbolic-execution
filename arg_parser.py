@@ -21,6 +21,9 @@ parser.add_argument('--debug', dest="debug", action='store_true', help='Debug Mo
 parser.add_boolean('--clean', dest='clean_workspace', default=True,
                    help="Cleans the output/ directory before adding new workspace directories.")
 
+parser.add_argument('--cfg-strategy', dest='cfg_strategy', default='',
+                    help="The CFG drawing strategy. Choose compound for compounding all functions.")
+
 # Exporters
 parser.add_boolean('--export-ast', dest='export_ast', default=True,
                    help="Store the ast value of the smart contract in output directory as `output.ast`.")

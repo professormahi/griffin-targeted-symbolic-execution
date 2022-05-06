@@ -11,6 +11,7 @@ from slither.slither import Slither
 from solc_select import solc_select
 import networkx as nx
 
+from arg_parser import args
 from slither_utils import escape_expression
 from utils import disabled_stdout, class_property
 
@@ -85,6 +86,7 @@ class SolcHelper:
 class SolFile:
     def __init__(self, path):
         self.path = path
+        self.cfg_strategy = args.cfg_strategy
 
     @cached_property
     def compiler_version(self) -> str:
@@ -151,6 +153,15 @@ class SolFile:
     def cfg(self) -> nx.MultiDiGraph:
         cfg_x = nx.MultiDiGraph()
 
+        if self.cfg_strategy == 'compound':
+            cfg_x.add_node("START_NODE", label=f"start")
+            cfg_x.add_node("END_NODE", label="end")
+            cfg_x.add_node("AFTER_CREATION", label="after constructor")
+            cfg_x.add_node("AFTER_TX", label="after transaction")
+
+            cfg_x.add_edge("AFTER_TX", "END_NODE")
+            cfg_x.add_edge("AFTER_TX", "AFTER_CREATION")
+
         for func in self.slither.contracts[0].functions:  # TODO Support more contracts
             # Traverse all nodes and add to networkx version
             for node in func.nodes:
@@ -160,6 +171,22 @@ class SolFile:
                           f" {escape_expression(node.expression)}",
                     shape="record"
                 )
+
+                if self.cfg_strategy == 'compound':
+                    if func.name == 'slitherConstructorVariables':
+                        cfg_x.add_edge(
+                            u_for_edge='START_NODE',
+                            v_for_edge=f'{func.name}_{node.node_id}',
+                        )
+                        cfg_x.add_edge(
+                            u_for_edge=f'{func.name}_{node.node_id}',
+                            v_for_edge='AFTER_CREATION'
+                        )
+                    elif node.type.name == 'ENTRYPOINT':
+                        cfg_x.add_edge(
+                            u_for_edge='AFTER_CREATION',
+                            v_for_edge=f'{func.name}_{node.node_id}',
+                        )
 
             # Add edges
             for node in func.nodes:
@@ -177,10 +204,16 @@ class SolFile:
                             label="False"
                         )
                 else:
-                    for son in node.sons:
+                    if node.sons:
+                        for son in node.sons:
+                            cfg_x.add_edge(
+                                u_for_edge=f"{func.name}_{node.node_id}",
+                                v_for_edge=f"{func.name}_{son.node_id}",
+                            )
+                    elif self.cfg_strategy == 'compound':
                         cfg_x.add_edge(
                             u_for_edge=f"{func.name}_{node.node_id}",
-                            v_for_edge=f"{func.name}_{son.node_id}",
+                            v_for_edge="AFTER_TX",
                         )
 
         return cfg_x

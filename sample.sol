@@ -11,6 +11,15 @@ contract Overflow {
         assert(sellerBalance >= value);
     }
 
+    function compute(uint input) public returns (uint){
+        uint result = input;
+
+        for (uint i; i < 100; i++)
+            result += i;
+
+        return result;
+    }
+
     function reset() public {
         sellerBalance = 0;
     }
