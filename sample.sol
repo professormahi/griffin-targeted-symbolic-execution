@@ -17,7 +17,11 @@ contract Overflow {
         for (uint i; i < 100; i++)
             result += i;
 
-        return result;
+        if (result == 150) {
+            return result;
+        } else {
+            return 0;
+        }
     }
 
     function reset() public {
