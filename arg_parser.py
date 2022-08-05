@@ -23,6 +23,9 @@ parser.add_boolean('--clean', dest='clean_workspace', default=True,
 
 parser.add_argument('--cfg-strategy', dest='cfg_strategy', default='',
                     help="The CFG drawing strategy. Choose compound for compounding all functions.")
+parser.add_argument('--cfg-expr-type', dest='cfg_expr_type', default='sol', choices=['sol', 'irs', 'irs_ssa'],
+                    help="The expressions' type for CFG. Available options are 'sol' for solidity expressions, "
+                         "'irs' for IR expressions, and 'irs_ssa' for SSA IRs.")
 
 # Exporters
 parser.add_boolean('--export-ast', dest='export_ast', default=True,

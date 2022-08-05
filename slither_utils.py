@@ -1,7 +1,4 @@
-from slither.core.expressions.expression import Expression as SlitherExpression
-
-
-def escape_expression(expr: SlitherExpression) -> str:
+def escape_expression(expr: str) -> str:
     return str(expr) \
         .replace(">=", "&ge;") \
         .replace("<=", "&le;") \

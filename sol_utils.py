@@ -165,11 +165,19 @@ class SolFile:
         for func in self.slither.contracts[0].functions:  # TODO Support more contracts
             # Traverse all nodes and add to networkx version
             for node in func.nodes:
+                expr = {
+                    'sol': node.expression,
+                    'irs': '\n'.join([str(ir) for ir in node.irs]),
+                    'irs_ssa': '\n'.join([str(ir) for ir in node.irs_ssa]),
+                }
+
                 cfg_x.add_node(
                     f"{func.name}_{node.node_id}",
-                    label=f"{func.name}_{node.node_id}|node_type = {node.type}\n\nexpression ="
-                          f" {escape_expression(node.expression)}",
-                    shape="record"
+                    label=f"{func.name}_{node.node_id}|node_type = {node.type}\n\nEXPRESSION: "
+                          f" {escape_expression(expr[args.cfg_expr_type])}",
+                    shape="record",
+                    sliter_node=node,
+                    **expr
                 )
 
                 if self.cfg_strategy == 'compound':
