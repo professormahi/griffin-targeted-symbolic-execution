@@ -21,6 +21,10 @@ parser.add_argument('--debug', dest="debug", action='store_true', help='Debug Mo
 parser.add_boolean('--clean', dest='clean_workspace', default=True,
                    help="Cleans the output/ directory before adding new workspace directories.")
 
+# Targeted Backward Symbolic Execution
+parser.add_argument('--target', dest='target', type=int, required=False,
+                    help="The line-number which the target of Targeted Backward Symbolic Execution")
+
 # CFG Options
 parser.add_argument('--cfg-strategy', dest='cfg_strategy', default='',
                     help="The CFG drawing strategy. Choose compound for compounding all functions.")
@@ -50,5 +54,7 @@ parser.add_boolean('--export-asm', dest='export_asm', default=True,
                    help="Store the ASM for the smart contract in output directory as `output.asm`.")
 parser.add_boolean('--export-cfg', dest='export_cfg__dot', default=True,
                    help="Store the CFG for the smart contract in output directory as `cfg.dot`.")
+parser.add_boolean('--export-reverse-cfg', dest='export_reversed_cfg__dot', default=True,
+                   help="Store the Reversed-CFG for the smart contract in output directory as `reversed_cfg.dot`.")
 
 args = parser.parse_args()

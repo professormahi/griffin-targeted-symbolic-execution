@@ -166,18 +166,26 @@ class SolFile:
             # Traverse all nodes and add to networkx version
             for node in func.nodes:
                 expr = {
-                    'sol': node.expression,
+                    'sol': str(node.expression),
                     'irs': '\n'.join([str(ir) for ir in node.irs]),
                     'irs_ssa': '\n'.join([str(ir) for ir in node.irs_ssa]),
                 }
 
+                # Checks if this node is the target of Targeted Backward Symbolic Execution
+                is_target = \
+                    args.target is not None \
+                    and node.expression is not None \
+                    and args.target in node.source_mapping['lines']
+                is_target = is_target or False  # Set False if this is None
+
                 cfg_x.add_node(
                     f"{func.name}_{node.node_id}",
-                    label=f"{func.name}_{node.node_id}|node_type = {node.type}\n\nEXPRESSION: "
+                    label=f"{func.name}_{node.node_id}{'*' if is_target else ''}|node_type = {node.type}\n\nEXPRESSION:"
                           f" {escape_expression(expr[args.cfg_expr_type])}",
                     shape="record",
-                    sliter_node=node,
-                    **expr
+                    lines=node.source_mapping['lines'],
+                    is_target=is_target,
+                    **expr,
                 )
 
                 if self.cfg_strategy == 'compound':
@@ -225,3 +233,7 @@ class SolFile:
                         )
 
         return cfg_x
+
+    @cached_property
+    def reversed_cfg(self):
+        return self.cfg.reverse(copy=True)
