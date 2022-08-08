@@ -11,4 +11,4 @@ if __name__ == '__main__':
     for path in contract.shortest_path:  # TODO remove and better results
         cfg_path = CFGPath(contract.reversed_cfg, *path)
         for i in range(len(cfg_path.expressions)):
-            print(cfg_path.expressions[i], cfg_path.constrains[i])
+            print(cfg_path.expressions[i], cfg_path.constraints[i])

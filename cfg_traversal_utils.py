@@ -27,9 +27,9 @@ class CFGPath:
         return res
 
     @cached_property
-    def constrains(self):
+    def constraints(self):
         return [SlitherIR(expr).constraints for expr in self.expressions]
 
     @cached_property
-    def is_sat(self):  # TODO
-        raise NotImplementedError
+    def is_sat(self):
+        raise NotImplementedError  # TODO Should implement

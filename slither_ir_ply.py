@@ -210,19 +210,15 @@ class SlitherIR:
     def constraints(self):
         return IR_PARSER.parse(self.expr, lexer=IR_LEXER)
 
-    @cached_property
-    def can_be_true(self):
-        return SelectedSolver.instance()
-
 
 if __name__ == '__main__':  # For testing the PLY
     for example in [
-        'RETURN',
         'RETURN result',
-        'sellerBalance(uint256) := 0(uint256)',
-        'result(uint256) := input(uint256)',
-        'TMP_2(bool) = i < 100',
-        'CONDITION 1',
         'CONDITION TMP_4',
+        'TMP_4(bool) = result == 150',
+        'CONDITION TMP_2',
+        'TMP_2(bool) = i < 100',
+        'result(uint256) := input(uint256)',
+        'sellerBalance(uint256) := 0(uint256)',
     ]:
         print(f"{example}: ", IR_PARSER.parse(example, lexer=IR_LEXER))
