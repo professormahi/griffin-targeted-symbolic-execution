@@ -3,19 +3,22 @@ import re
 from functools import cached_property
 from typing import Union
 
+import networkx as nx
 import solcx
 from evm_cfg_builder import CFG as EVMCFG
 from pyevmasm import disassemble_hex
 from slither.core.cfg.node import NodeType as SlitherNodeType
 from slither.slither import Slither
 from solc_select import solc_select
-import networkx as nx
 
+import utils
 from arg_parser import args
 from slither_utils import escape_expression
 from utils import disabled_stdout, class_property
 
 PRAGMA_SOLIDITY_VERSION_REGEX = re.compile(r'^pragma\ssolidity\s\^([\d.]+);$')
+
+END_LINE = '\n'
 
 
 class SolcSelectHelper:
@@ -87,12 +90,14 @@ class SolFile:
     def __init__(self, path):
         self.path = path
         self.cfg_strategy = args.cfg_strategy
+        self.target = None
 
     @cached_property
     def compiler_version(self) -> str:
         with open(self.path) as f:
             for line in f:
                 if matched := PRAGMA_SOLIDITY_VERSION_REGEX.match(line):
+                    utils.log(f"compiling with solidity compiler version {matched.groups()[0]}")
                     return matched.groups()[0]
 
     @cached_property
@@ -154,6 +159,8 @@ class SolFile:
         cfg_x = nx.MultiDiGraph()
 
         if self.cfg_strategy == 'compound':
+            utils.log("compound mode activated.")
+
             cfg_x.add_node("START_NODE", label=f"start")
             cfg_x.add_node("END_NODE", label="end")
             cfg_x.add_node("AFTER_CREATION", label="after constructor")
@@ -166,9 +173,9 @@ class SolFile:
             # Traverse all nodes and add to networkx version
             for node in func.nodes:
                 expr = {
-                    'sol': str(node.expression),
-                    'irs': '\n'.join([str(ir) for ir in node.irs]),
-                    'irs_ssa': '\n'.join([str(ir) for ir in node.irs_ssa]),
+                    'sol': [str(node.expression or ''), ],
+                    'irs': [str(ir) for ir in node.irs],
+                    'irs_ssa': [str(ir) for ir in node.irs_ssa],
                 }
 
                 # Checks if this node is the target of Targeted Backward Symbolic Execution
@@ -181,12 +188,16 @@ class SolFile:
                 cfg_x.add_node(
                     f"{func.name}_{node.node_id}",
                     label=f"{func.name}_{node.node_id}{'*' if is_target else ''}|node_type = {node.type}\n\nEXPRESSION:"
-                          f" {escape_expression(expr[args.cfg_expr_type])}",
+                          f" {escape_expression(END_LINE.join(expr[args.cfg_expr_type]))}",
                     shape="record",
                     lines=node.source_mapping['lines'],
                     is_target=is_target,
                     **expr,
                 )
+
+                if is_target is True:
+                    self.target = f"{func.name}_{node.node_id}"  # TODO: is it possible to have multiple targets?
+                    utils.log(f"target node is {self.target}")
 
                 if self.cfg_strategy == 'compound':
                     if func.name == 'slitherConstructorVariables':
@@ -235,5 +246,10 @@ class SolFile:
         return cfg_x
 
     @cached_property
-    def reversed_cfg(self):
+    def reversed_cfg(self) -> nx.MultiDiGraph:
         return self.cfg.reverse(copy=True)
+
+    @cached_property
+    def shortest_path(self):
+        utils.log(f"finding shortest path from '{self.target}' to 'start'", level='debug')
+        return nx.all_shortest_paths(G=self.reversed_cfg, source=self.target, target='START_NODE')

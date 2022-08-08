@@ -11,11 +11,11 @@ OUTPUT_DIR = pathlib.Path('output/')
 
 def prepare_workspace() -> Path:
     if args.clean_workspace:
-        log('cleaning workspace...')
+        log('cleaning workspace...', level='debug')
         shutil.rmtree(OUTPUT_DIR.__str__())
         OUTPUT_DIR.mkdir()
 
-    log('creating temp directory...')
+    log('creating temp directory...', level='debug')
     tempdir = OUTPUT_DIR.joinpath(datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))
     __workspace = pathlib.Path(tempdir)
     __workspace.mkdir()

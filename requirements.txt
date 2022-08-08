@@ -5,7 +5,12 @@ ipython==8.1.1
 py-solc-x==1.1.1
 pyevmasm==0.2.3
 slither-analyzer==0.8.3
+protobuf==3.20.1
+manticore==0.3.7
 
 # Networkx
 networkx==2.7.1
 pydot==1.4.2
+
+# PLY
+ply==3.11

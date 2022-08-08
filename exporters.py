@@ -35,7 +35,7 @@ class Exporter:
 
 
 def export_requested_parameters(contract):
-    log("Start exporting requested parameters...")
+    log("start exporting requested parameters...")
 
     requested_export_list = filter(lambda x: x.startswith('export_'), args.__dict__.keys())
     for item in requested_export_list:
