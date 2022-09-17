@@ -155,6 +155,13 @@ class SolFile:
         return Slither(self.path)
 
     @cached_property
+    def variables(self):
+        result = {}
+        for func in self.slither.contracts[0].functions:  # TODO support more contracts
+            result = result | {k: str(v.type) for k, v in func.variables_as_dict.items()}
+        return result
+
+    @cached_property
     def cfg(self) -> nx.MultiDiGraph:
         cfg_x = nx.MultiDiGraph()
 

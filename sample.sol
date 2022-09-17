@@ -11,10 +11,10 @@ contract Overflow {
         assert(sellerBalance >= value);
     }
 
-    function compute(uint input) public returns (uint){
-        uint result = input;
+    function compute(uint xyz) public returns (uint){
+        uint result = xyz;
 
-        for (uint i; i < 100; i++)
+        for (uint i = 0; i < 100; i++)
             result += i;
 
         if (result == 150) {

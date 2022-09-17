@@ -9,6 +9,9 @@ if __name__ == '__main__':
     export_requested_parameters(contract)
 
     for path in contract.shortest_path:  # TODO remove and better results
-        cfg_path = CFGPath(contract.reversed_cfg, *path)
+        cfg_path = CFGPath(contract.reversed_cfg, *path, variables=contract.variables)
         for i in range(len(cfg_path.expressions)):
-            print(cfg_path.expressions[i], cfg_path.constraints[i])
+            print(f"{cfg_path.expressions[i].ljust(50)} {cfg_path.constraints[i]}")
+
+        print(f"Is Sat? {cfg_path.is_sat}")
+        print(f"Sat inputs: {cfg_path.sat_inputs}")
