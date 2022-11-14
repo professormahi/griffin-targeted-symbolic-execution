@@ -43,6 +43,7 @@ class CFGPath:
 
     @cached_property
     def constraints(self):
+        SymbolTableManager.get_instance().clear_table()
         SymbolTableManager.get_instance().set_types(self.variables)
 
         return [SlitherIR(expr).constraints for expr in self.expressions]
