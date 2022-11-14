@@ -156,7 +156,14 @@ class SlitherIRSyntaxError(Exception):
 
 
 def p_error(p):
-    logger.error(f'Syntax error while processing token={p.type}, value={p.value}, lineno={p.lineno}, pos={p.lexpos}')
+    logger.error(
+        f'Syntax error while processing '
+        f'token={p.type}, '
+        f'value={p.value}, '
+        f'lineno={p.lineno}, '
+        f'pos={p.lexpos}, '
+        f'lex_data="{p.lexer.lexdata}"'
+    )
     raise SlitherIRSyntaxError(p)
 
 
