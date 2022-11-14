@@ -6,7 +6,6 @@ import networkx as nx
 from z3 import Solver, sat
 
 import utils
-from arg_parser import args
 from slither_ir_ply import SlitherIR, SymbolTableManager
 
 
@@ -117,6 +116,8 @@ class WalkTree:
 
     @cached_property
     def __heuristic(self) -> Callable:
+        from arg_parser import args
+
         return Heuristic.get_instance(self.reversed_cfg, name=args.heuristic).fitness
 
     def __get_node_on_rev_cfg(self, walk_node_id) -> str:
