@@ -13,6 +13,7 @@ from solc_select import solc_select
 
 import utils
 from arg_parser import args
+from cfg_traversal_utils import WalkTree
 from slither_utils import escape_expression
 from utils import disabled_stdout, class_property
 
@@ -257,6 +258,6 @@ class SolFile:
         return self.cfg.reverse(copy=True)
 
     @cached_property
-    def shortest_path(self):
-        utils.log(f"finding shortest path from '{self.target}' to 'start'", level='debug')
-        return nx.all_shortest_paths(G=self.reversed_cfg, source=self.target, target='START_NODE')
+    def find_test_data(self):
+        utils.log(f"finding optimal SAT path from '{self.target}' to 'start'", level='debug')
+        return WalkTree(contract=self, reversed_cfg=self.reversed_cfg, target_node=self.target).traverse()
