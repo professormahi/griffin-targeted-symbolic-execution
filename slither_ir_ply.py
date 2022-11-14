@@ -34,6 +34,7 @@ tokens = [
     'EQUAL',
     'COND_EQUAL',
     'COND_LESS',
+    'MATH_OPS',  # Math Binary Operators
 
     # Parenthesis
     'LPAREN',
@@ -76,6 +77,12 @@ def t_NUMBER(t):
     return t
 
 
+# noinspection PyPep8Naming
+def t_LPAREN_C_RPAREN(t):
+    r"""\(c\)"""
+    pass  # TODO: Maybe do not ignore this token
+
+
 # Assignment
 # https://github.com/crytic/slither/wiki/SlithIR#assignment
 t_ASSIGNMENT = r':='
@@ -85,6 +92,7 @@ t_ASSIGNMENT = r':='
 t_EQUAL = r'='
 t_COND_EQUAL = r'=='
 t_COND_LESS = r'<'
+t_MATH_OPS = r'\-|\+|\*|\/|%'
 
 # Ignore
 t_ignore = ' \t'
@@ -204,7 +212,8 @@ def p_assignment(p):
 
 def p_binary_operator(p):
     """bin_op : COND_LESS
-              | COND_EQUAL"""
+              | COND_EQUAL
+              | MATH_OPS"""
     p[0] = p[1]
 
 
@@ -223,7 +232,15 @@ def p_binary_operation(p):
     #      0        1    2     3      4     5         6         7          8
     operation = {
         '<': lambda a, b: a < b,
+        '>': lambda a, b: a > b,
+        '<=': lambda a, b: a <= b,
+        '>=': lambda a, b: a >= b,
         '==': lambda a, b: a == b,
+        '-': lambda a, b: a - b,
+        '+': lambda a, b: a + b,
+        '*': lambda a, b: a * b,
+        '%': lambda a, b: a % b,
+        '/': lambda a, b: a / b,
     }.get(p[7])
 
     p[0] = symbol_table_manager.get_z3_variable(p[1], new=True)
