@@ -33,7 +33,7 @@ tokens = [
     # https://github.com/crytic/slither/wiki/SlithIR#binary-operation
     'EQUAL',
     'COND_EQUAL',
-    'COND_LESS',
+    'COND_INEQUALITY',
     'MATH_OPS',  # Math Binary Operators
     'UNARY_OPS',  # Boolean Unary Operators
     'BINARY_BOOLEAN_OPS',  # Boolean Binary Operators
@@ -93,10 +93,10 @@ t_ASSIGNMENT = r':='
 # https://github.com/crytic/slither/wiki/SlithIR#binary-operation
 t_EQUAL = r'='
 t_COND_EQUAL = r'=='
-t_COND_LESS = r'<'
+t_COND_INEQUALITY = r'<|>|(<=)|(>=)'
 t_MATH_OPS = r'\-|\+|\*|\/|%'
 t_UNARY_OPS = r'\!|\~'
-t_BINARY_BOOLEAN_OPS = r'(\&\&)|(\-\-)'
+t_BINARY_BOOLEAN_OPS = r'(\&\&)|(\|\|)'
 
 # Ignore
 t_ignore = ' \t'
@@ -224,7 +224,7 @@ def p_assignment(p):
 
 
 def p_binary_operator(p):
-    """bin_op : COND_LESS
+    """bin_op : COND_INEQUALITY
               | COND_EQUAL
               | MATH_OPS
               | BINARY_BOOLEAN_OPS"""
@@ -263,7 +263,7 @@ def p_binary_operation(p):
         '%': lambda a, b: a % b,
         '/': lambda a, b: a / b,
         '&&': lambda a, b: And(a, b),
-        '--': lambda a, b: Or(a, b),
+        '||': lambda a, b: Or(a, b),
     }.get(p[7])
 
     p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
