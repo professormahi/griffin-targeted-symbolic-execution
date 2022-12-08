@@ -46,8 +46,8 @@ contract Sample {
         return false;
     }
 
-    function simpleNot(bool magicBoolean) public returns (bool) {
-        if (!magicBoolean)
+    function simpleNot(bool magicBoolean, uint magicInteger) public returns (bool) {
+        if (!magicBoolean  && (magicInteger < 12))
             return true;
         return false;
     }

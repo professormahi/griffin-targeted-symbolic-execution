@@ -4,7 +4,7 @@ from typing import List
 
 import ply.lex as lex
 import ply.yacc as yacc
-from z3 import BitVec, BitVecVal, BoolVal, Bool, BitVecNumRef
+from z3 import BitVec, BitVecVal, BoolVal, Bool, BitVecNumRef, And, Or
 from manticore.ethereum.abitypes import lexer as type_lexer
 from manticore.exceptions import EthereumError
 
@@ -36,6 +36,7 @@ tokens = [
     'COND_LESS',
     'MATH_OPS',  # Math Binary Operators
     'UNARY_OPS',  # Boolean Unary Operators
+    'BINARY_BOOLEAN_OPS',  # Boolean Binary Operators
 
     # Parenthesis
     'LPAREN',
@@ -95,6 +96,7 @@ t_COND_EQUAL = r'=='
 t_COND_LESS = r'<'
 t_MATH_OPS = r'\-|\+|\*|\/|%'
 t_UNARY_OPS = r'\!|\~'
+t_BINARY_BOOLEAN_OPS = r'(\&\&)|(\-\-)'
 
 # Ignore
 t_ignore = ' \t'
@@ -224,7 +226,8 @@ def p_assignment(p):
 def p_binary_operator(p):
     """bin_op : COND_LESS
               | COND_EQUAL
-              | MATH_OPS"""
+              | MATH_OPS
+              | BINARY_BOOLEAN_OPS"""
     p[0] = p[1]
 
 
@@ -259,6 +262,8 @@ def p_binary_operation(p):
         '*': lambda a, b: a * b,
         '%': lambda a, b: a % b,
         '/': lambda a, b: a / b,
+        '&&': lambda a, b: And(a, b),
+        '--': lambda a, b: Or(a, b),
     }.get(p[7])
 
     p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
