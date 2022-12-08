@@ -195,7 +195,7 @@ class SolFile:
                 is_target = \
                     args.target is not None \
                     and node.expression is not None \
-                    and args.target in node.source_mapping['lines']
+                    and args.target in node.source_mapping.lines
                 is_target = is_target or False  # Set False if this is None
 
                 cfg_x.add_node(
@@ -203,7 +203,7 @@ class SolFile:
                     label=f"{func.name}_{node.node_id}{'*' if is_target else ''}|node_type = {node.type}\n\nEXPRESSION:"
                           f" {escape_expression(END_LINE.join(expr[args.cfg_expr_type]))}",
                     shape="record",
-                    lines=node.source_mapping['lines'],
+                    lines=node.source_mapping.lines,
                     is_target=is_target,
                     **expr,
                 )
