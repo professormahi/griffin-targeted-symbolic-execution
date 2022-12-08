@@ -101,6 +101,11 @@ t_ignore = ' \t'
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 
+
+def t_error(t):
+    pass  # TODO: Should implement later.
+
+
 IR_LEXER = lex.lex()  # TODO Add more lex patterns
 
 
@@ -121,9 +126,13 @@ class SymbolTableManager:
 
         return cls.__instance
 
-    def get_variable(self, symbol_name, new=False) -> str:
-        if new is True:
-            self.__symbols[symbol_name] = self.__symbols.get(symbol_name, -1) + 1
+    def get_variable(self, symbol_name, plus_plus=False, save=False) -> str:
+        if plus_plus:
+            if save is False:
+                return f"{symbol_name}_{self.__symbols.get(symbol_name, -1) + 1}"
+            else:
+                self.__symbols[symbol_name] = self.__symbols.get(symbol_name, -1) + 1
+                return f"{symbol_name}_{self.__symbols[symbol_name]}"
 
         return f"{symbol_name}_{self.__symbols.get(symbol_name, 0)}"
 
@@ -138,8 +147,8 @@ class SymbolTableManager:
                 'bool': Bool,
             }.get(variable_type)
 
-    def get_z3_variable(self, symbol_name, new=False):
-        return self.z3_types(self.__types[symbol_name])(self.get_variable(symbol_name, new))
+    def get_z3_variable(self, symbol_name, plus_plus=False, save=False):
+        return self.z3_types(self.__types[symbol_name])(self.get_variable(symbol_name, plus_plus=plus_plus, save=save))
 
     def set_types(self, types):
         self.__types = types
@@ -201,12 +210,12 @@ def p_assignment(p):
     if p[3] != p[8]:
         raise SlitherIRSyntaxError(p)
 
-    if isinstance(p[6], str):
-        p[0] = symbol_table_manager.get_z3_variable(p[1])
-        _p6 = symbol_table_manager.get_z3_variable(p[6])
+    if isinstance(p[6], str):  # It's a variable
+        p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
+        _p6 = symbol_table_manager.get_z3_variable(p[6], plus_plus=True)
         p[0] = p[0] == _p6
     else:
-        p[0] = symbol_table_manager.get_z3_variable(p[1], new=True)
+        p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
         p[0] = p[0] == p[6]
 
 
@@ -221,9 +230,9 @@ def p_binary_operation_rvalue(p):
     """bin_op_rvalue : ID
                      | constant"""
     if isinstance(p[1], BitVecNumRef):  # TODO Other constant types
-        p[0] = p[1]
+        p[0] = ('const', p[1])
     else:
-        p[0] = symbol_table_manager.get_z3_variable(p[1])
+        p[0] = ('symbol', p[1])
 
 
 # https://github.com/crytic/slither/wiki/SlithIR#binary-operation
@@ -243,8 +252,19 @@ def p_binary_operation(p):
         '/': lambda a, b: a / b,
     }.get(p[7])
 
-    p[0] = symbol_table_manager.get_z3_variable(p[1], new=True)
-    p[0] = p[0] == operation(p[6], p[8])
+    def rvalue_processor(lvalue_id, rvalue):
+        if rvalue[0] == 'const':
+            return rvalue[1]
+        elif rvalue[1] == lvalue_id:
+            return symbol_table_manager.get_z3_variable(rvalue[1], plus_plus=True)
+        else:
+            return symbol_table_manager.get_z3_variable(rvalue[1], plus_plus=True)
+
+    p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
+    p[0] = p[0] == operation(
+        rvalue_processor(lvalue_id=p[1], rvalue=p[6]),
+        rvalue_processor(lvalue_id=p[1], rvalue=p[8]),
+    )
 
 
 def p_condition(p):

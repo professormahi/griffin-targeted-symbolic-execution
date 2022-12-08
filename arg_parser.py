@@ -18,7 +18,7 @@ parser.add_boolean = partial(add_boolean, parser)
 parser.add_argument("contract", help="The smart contract solidity file to process")
 
 parser.add_argument('--debug', dest="debug", action='store_true', help='Debug Mode', default=False)
-parser.add_boolean('--clean', dest='clean_workspace', default=True,
+parser.add_boolean('--clean', dest='clean_workspace', default=False,
                    help="Cleans the output/ directory before adding new workspace directories.")
 
 # Targeted Backward Symbolic Execution
