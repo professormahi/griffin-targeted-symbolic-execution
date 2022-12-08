@@ -39,6 +39,13 @@ class CFGPath:
             if matched := compiled_pattern.match(expr):
                 result[matched.group("variable_name")] = matched.group("variable_type")
 
+        # There is bug in SlitherIR that for `rvalue = ! lvalue` and `rvalue = ~ lvalue` no type is applied
+        # TODO: Add issue to Slither and fix this. After that, we should remove the following loop
+        compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\s?=\s?[!~]\s(\w+)")
+        for expr in self.expressions:
+            if matched := compiled_pattern.match(expr):
+                result[matched.group("variable_name")] = 'bool'
+
         return result
 
     @cached_property

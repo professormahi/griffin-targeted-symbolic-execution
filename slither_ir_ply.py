@@ -35,6 +35,7 @@ tokens = [
     'COND_EQUAL',
     'COND_LESS',
     'MATH_OPS',  # Math Binary Operators
+    'UNARY_OPS',  # Boolean Unary Operators
 
     # Parenthesis
     'LPAREN',
@@ -93,6 +94,7 @@ t_EQUAL = r'='
 t_COND_EQUAL = r'=='
 t_COND_LESS = r'<'
 t_MATH_OPS = r'\-|\+|\*|\/|%'
+t_UNARY_OPS = r'\!|\~'
 
 # Ignore
 t_ignore = ' \t'
@@ -235,6 +237,13 @@ def p_binary_operation_rvalue(p):
         p[0] = ('symbol', p[1])
 
 
+def _rvalue_processor(rvalue):
+    if rvalue[0] == 'const':
+        return rvalue[1]
+    else:
+        return symbol_table_manager.get_z3_variable(rvalue[1], plus_plus=True)
+
+
 # https://github.com/crytic/slither/wiki/SlithIR#binary-operation
 def p_binary_operation(p):
     """expression : ID LPAREN type RPAREN EQUAL bin_op_rvalue bin_op bin_op_rvalue"""
@@ -252,19 +261,22 @@ def p_binary_operation(p):
         '/': lambda a, b: a / b,
     }.get(p[7])
 
-    def rvalue_processor(lvalue_id, rvalue):
-        if rvalue[0] == 'const':
-            return rvalue[1]
-        elif rvalue[1] == lvalue_id:
-            return symbol_table_manager.get_z3_variable(rvalue[1], plus_plus=True)
-        else:
-            return symbol_table_manager.get_z3_variable(rvalue[1], plus_plus=True)
-
     p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
     p[0] = p[0] == operation(
-        rvalue_processor(lvalue_id=p[1], rvalue=p[6]),
-        rvalue_processor(lvalue_id=p[1], rvalue=p[8]),
+        _rvalue_processor(rvalue=p[6]),
+        _rvalue_processor(rvalue=p[8]),
     )
+
+
+def p_unary_operation(p):
+    """expression : ID EQUAL UNARY_OPS bin_op_rvalue"""
+    #      0         1  2        3     4
+    p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
+    operation = {
+        '!': lambda v: not v,  # TODO Support `~`
+    }.get(p[3])
+
+    p[0] = p[0] == _rvalue_processor(p[4])
 
 
 def p_condition(p):
