@@ -37,6 +37,8 @@ parser.add_argument('--heuristic', dest='heuristic', default='floyd_warshall',
                     help="The heuristic to traverse CFG and find test data.")
 
 # Exporters
+parser.add_boolean('--export-source', dest='export_source__sol', default=True,
+                   help="Adds the solidity source code as `output.sol`.")
 parser.add_boolean('--export-ast', dest='export_ast', default=True,
                    help="Store the ast value of the smart contract in output directory as `output.ast`.")
 parser.add_boolean('--export-bin', dest='export_bin', default=True,

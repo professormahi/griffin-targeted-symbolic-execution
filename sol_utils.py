@@ -102,6 +102,11 @@ class SolFile:
                     return matched.groups()[0]
 
     @cached_property
+    def source(self) -> str:
+        with open(self.path) as f:
+            return ''.join(f.readlines())
+
+    @cached_property
     def compiled(self) -> dict:
         if self.compiler_version:  # TODO otherwise?
             SolcSelectHelper.select(self.compiler_version, install=True)
