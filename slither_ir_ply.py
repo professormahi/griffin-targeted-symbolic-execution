@@ -4,7 +4,7 @@ from typing import List
 
 import ply.lex as lex
 import ply.yacc as yacc
-from z3 import BitVec, BitVecVal, BoolVal, Bool, BitVecNumRef, And, Or
+from z3 import BitVec, BitVecVal, BoolVal, Bool, BitVecNumRef, And, Or, Not
 from manticore.ethereum.abitypes import lexer as type_lexer
 from manticore.exceptions import EthereumError
 
@@ -278,10 +278,10 @@ def p_unary_operation(p):
     #      0         1  2        3     4
     p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
     operation = {
-        '!': lambda v: not v,  # TODO Support `~`
+        '!': lambda v: Not(v),  # TODO Support `~`
     }.get(p[3])
 
-    p[0] = p[0] == _rvalue_processor(p[4])
+    p[0] = p[0] == operation(_rvalue_processor(p[4]))
 
 
 def p_condition(p):
