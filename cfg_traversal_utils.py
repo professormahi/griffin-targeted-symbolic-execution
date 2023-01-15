@@ -31,22 +31,7 @@ class CFGPath:
 
     @cached_property
     def variables(self):
-        result = self._variables or {}
-
-        # Variables from IRs
-        compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\((?P<variable_type>\w+)\)\s(=|:=)")
-        for expr in self.expressions:
-            if matched := compiled_pattern.match(expr):
-                result[matched.group("variable_name")] = matched.group("variable_type")
-
-        # There is bug in SlitherIR that for `rvalue = ! lvalue` and `rvalue = ~ lvalue` no type is applied
-        # TODO: Add issue to Slither and fix this. After that, we should remove the following loop
-        compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\s?=\s?[!~]\s(\w+)")
-        for expr in self.expressions:
-            if matched := compiled_pattern.match(expr):
-                result[matched.group("variable_name")] = 'bool'
-
-        return result
+        return self._variables
 
     @cached_property
     def constraints(self):
@@ -145,8 +130,40 @@ class WalkTree:
                 self.__get_node_on_rev_cfg(__walk_node_id)
                 for __walk_node_id in nx.shortest_path(self.__walk_tree, target=walk_node_id, source=0)
             ],
-            variables=self.contract.variables
+            variables=self.__contract_variables,
         )
+
+    @cached_property
+    def __contract_variables(self):
+        # The contract variables
+        variables = self.contract.variables
+
+        # The IR variables
+        compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\((?P<variable_type>\w+)\)\s(=|:=|->)")
+        for node in self.contract.cfg.nodes:
+            for expr in self.contract.cfg.nodes[node].get("irs", []):
+                if matched := compiled_pattern.match(expr):
+                    if matched.group("variable_name").startswith("REF_") is False:
+                        variables[matched.group("variable_name")] = matched.group("variable_type")
+                    else:
+                        rvalue_matched = re.match(
+                            r"\w+\(\w+\)\s?->\s?(?P<referee_name>\w+)\[(?P<index>\w+)]",
+                            expr
+                        )
+                        referee_name = rvalue_matched.group('referee_name')
+                        indx = rvalue_matched.group('index')
+                        variables[matched.group("variable_name")] = f'REF[{variables[referee_name]}, {referee_name}, ' \
+                                                                    f'{indx}]'
+
+        # There is bug in SlitherIR that for `rvalue = ! lvalue` and `rvalue = ~ lvalue` no type is applied
+        # TODO: Add issue to Slither and fix this. After that, we should remove the following loop
+        compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\s?=\s?[!~]\s(\w+)")
+        for node in self.contract.cfg.nodes:
+            for expr in self.contract.cfg.nodes[node].get("irs", []):
+                if matched := compiled_pattern.match(expr):
+                    variables[matched.group("variable_name")] = 'bool'
+
+        return variables
 
     def traverse(self) -> CFGPath | None:
         while True:

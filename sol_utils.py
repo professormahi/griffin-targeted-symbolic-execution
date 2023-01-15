@@ -162,9 +162,15 @@ class SolFile:
 
     @cached_property
     def variables(self):
-        result = {}
-        for func in self.slither.contracts[0].functions:  # TODO support more contracts
+        # TODO support more contracts
+
+        # First, add global variables
+        result = {k: str(v.type) for k, v in self.slither.contracts[0].variables_as_dict.items()}
+
+        # Second, add function variables
+        for func in self.slither.contracts[0].functions:
             result = result | {k: str(v.type) for k, v in func.variables_as_dict.items()}
+
         return result
 
     @cached_property
@@ -174,7 +180,7 @@ class SolFile:
         if self.cfg_strategy == 'compound':
             utils.log("compound mode activated.")
 
-            cfg_x.add_node("START_NODE", label=f"start")
+            cfg_x.add_node("START_NODE", label=f"start", irs=["INITIALIZE_GLOBS", ])
             cfg_x.add_node("END_NODE", label="end")
             cfg_x.add_node("AFTER_CREATION", label="after constructor")
             cfg_x.add_node("AFTER_TX", label="after transaction")
@@ -213,7 +219,7 @@ class SolFile:
                     utils.log(f"target node is {self.target}")
 
                 if self.cfg_strategy == 'compound':
-                    if func.name == 'slitherConstructorVariables':
+                    if func.name == 'slitherConstructorVariables' or func.name.startswith("constructor"):
                         cfg_x.add_edge(
                             u_for_edge='START_NODE',
                             v_for_edge=f'{func.name}_{node.node_id}',
@@ -256,6 +262,12 @@ class SolFile:
                             v_for_edge="AFTER_TX",
                         )
 
+        # noinspection PyArgumentList
+        if not cfg_x.out_edges("START_NODE"):
+            cfg_x.add_edge(
+                u_for_edge='START_NODE',
+                v_for_edge='AFTER_CREATION'
+            )
         return cfg_x
 
     @cached_property

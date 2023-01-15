@@ -1,10 +1,13 @@
 import logging
+import re
+import time
 from functools import cached_property, partial
 from typing import List
 
 import ply.lex as lex
 import ply.yacc as yacc
-from z3 import BitVec, BitVecVal, BoolVal, Bool, BitVecNumRef, And, Or, Not
+from z3 import BitVec, BitVecVal, BoolVal, Bool, BitVecNumRef, And, Or, Not, Function, IntSort, BoolSort, Int, ForAll, \
+    Implies
 from manticore.ethereum.abitypes import lexer as type_lexer
 from manticore.exceptions import EthereumError
 
@@ -16,6 +19,8 @@ reserved = {
 
     'RETURN': 'RETURN',
     'CONDITION': 'CONDITION',
+
+    'INITIALIZE_GLOBS': 'INITIALIZE_GLOBS',
 }
 
 # Lex Tokens
@@ -29,6 +34,9 @@ tokens = [
     # https://github.com/crytic/slither/wiki/SlithIR#assignment
     'ASSIGNMENT',
 
+    # Indexing/Membership Operators
+    'ARROW',
+
     # Binary Operations
     # https://github.com/crytic/slither/wiki/SlithIR#binary-operation
     'EQUAL',
@@ -38,9 +46,11 @@ tokens = [
     'UNARY_OPS',  # Boolean Unary Operators
     'BINARY_BOOLEAN_OPS',  # Boolean Binary Operators
 
-    # Parenthesis
+    # Parenthesis, Brackets, etc.
     'LPAREN',
     'RPAREN',
+    'LBRACKETS',
+    'RBRACKETS',
 
     # Types
     # From Manticore https://github.com/trailofbits/manticore/blob/master/manticore/ethereum/abitypes.py
@@ -94,16 +104,21 @@ t_ASSIGNMENT = r':='
 t_EQUAL = r'='
 t_COND_EQUAL = r'=='
 t_COND_INEQUALITY = r'<|>|(<=)|(>=)'
-t_MATH_OPS = r'\-|\+|\*|\/|%'
+t_MATH_OPS = r'\-(?!>)|\+|\*|\/|%'
 t_UNARY_OPS = r'\!|\~'
 t_BINARY_BOOLEAN_OPS = r'(\&\&)|(\|\|)'
+
+# Indexing/Membership Operators
+t_ARROW = r'->'
 
 # Ignore
 t_ignore = ' \t'
 
-# Parenthesis
+# Parenthesis, Brackets, etc
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
+t_LBRACKETS = r'\['
+t_RBRACKETS = r'\]'
 
 
 def t_error(t):
@@ -131,6 +146,7 @@ class SymbolTableManager:
         return cls.__instance
 
     def get_variable(self, symbol_name, plus_plus=False, save=False) -> str:
+        # TODO: Change name of this function to get indexed variable
         if plus_plus:
             if save is False:
                 return f"{symbol_name}_{self.__symbols.get(symbol_name, -1) + 1}"
@@ -140,19 +156,96 @@ class SymbolTableManager:
 
         return f"{symbol_name}_{self.__symbols.get(symbol_name, 0)}"
 
-    @staticmethod
-    def z3_types(variable_type):
+    @property
+    def get_mapping_references(self):
+        return [k for k, v in self.__types.items() if ('mapping' in v and k.startswith('REF_'))]
+
+    @classmethod
+    def __z3_sorts(cls, variable_type):
+        if "int" in variable_type:
+            return IntSort()
+        else:
+            return {
+                'bool': BoolSort(),
+            }.get(variable_type)
+
+    @classmethod
+    def z3_types(cls, variable_type):
         if variable_type.startswith("uint"):
-            return partial(BitVec, bv=int(variable_type[4:]))
+            return Int  # TODO Maybe support BitVec later
         elif variable_type.startswith("int"):
-            return partial(BitVec, bv=int(variable_type[3:]))
+            return Int  # TODO Maybe support BitVec later
+        elif variable_type.startswith("REF"):
+            raise NotImplementedError
         else:
             return {
                 'bool': Bool,
             }.get(variable_type)
 
+    @classmethod
+    def get_z3_references(cls, variable_type):
+        if 'mapping' in variable_type:
+            matched = re.match(
+                r"REF\[mapping\((?P<mapping_from>\w+)\s?=>\s?"
+                r"(?P<mapping_to>\w+)\),\s(?P<referee>\w+),\s(?P<index>\w+)]",
+                variable_type
+            )
+            return (
+                Function(
+                    matched.group("referee"),
+                    cls.__z3_sorts(matched.group("mapping_from")),
+                    IntSort(),  # CAUTION: For the SSA
+                    cls.__z3_sorts(matched.group("mapping_to"))
+                ),
+                matched.group("index")
+            )
+        else:
+            pass  # TODO
+
     def get_z3_variable(self, symbol_name, plus_plus=False, save=False):
-        return self.z3_types(self.__types[symbol_name])(self.get_variable(symbol_name, plus_plus=plus_plus, save=save))
+        if symbol_name.startswith("REF_"):  # References
+            func, indx = self.get_z3_references(self.__types[symbol_name])
+            index_of_reference = self.get_variable(
+                func.name(), plus_plus=plus_plus, save=save
+            ).removeprefix(func.name()).replace("_", "")
+            if indx.isnumeric() is True:
+                return func(indx, index_of_reference)
+            else:
+                return func(self.get_z3_variable(indx, plus_plus=False, save=False), index_of_reference)
+        else:
+            return self.z3_types(self.__types[symbol_name])(
+                self.get_variable(symbol_name, plus_plus=plus_plus, save=save)
+            )
+
+    def get_z3_all_except_reference_conds(self, symbol_name, plus_plus=False, save=False):
+        if not symbol_name.startswith('REF_'):
+            raise NotImplementedError
+
+        func, indx = self.get_z3_references(self.__types[symbol_name])
+        from_sort = func.domain(0)
+        temp_variable = self.z3_types(from_sort.name().lower())(f"mapping_temp_{time.time_ns()}")
+
+        index_of_reference = self.get_variable(
+            func.name(), plus_plus=plus_plus, save=save
+        ).removeprefix(func.name()).replace("_", "")
+
+        # return func(temp_variable, index_of_reference) == func(temp_variable, str(int(index_of_reference) + 1))
+        if indx.isnumeric():
+            return ForAll(
+                [temp_variable],
+                Implies(
+                    temp_variable != indx,
+                    func(temp_variable, index_of_reference) == func(temp_variable, str(int(index_of_reference) + 1))
+                )
+            )
+        else:
+            return ForAll(
+                [temp_variable],
+                Implies(
+                    temp_variable != self.get_z3_variable(indx, plus_plus=False, save=False),
+                    func(temp_variable, index_of_reference) == func(temp_variable, str(int(index_of_reference) + 1))
+                )
+            )
 
     def set_types(self, types):
         self.__types = types
@@ -204,7 +297,7 @@ def p_return_stmt(p):
 def p_constant(p):
     """constant : NUMBER"""
     # TODO Other Types
-    p[0] = BitVecVal(p[1], bv=256)
+    p[0] = BitVecVal(p[1], bv=256).as_long()
 
 
 def p_assignment(p):
@@ -214,7 +307,10 @@ def p_assignment(p):
     if p[3] != p[8]:
         raise SlitherIRSyntaxError(p)
 
-    if isinstance(p[6], str):  # It's a variable
+    if isinstance(p[6], str):  # It's a variable/reference
+        if p[6].startswith("REF_"):  # reference
+            raise NotImplementedError()
+
         p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
         _p6 = symbol_table_manager.get_z3_variable(p[6], plus_plus=True)
         p[0] = p[0] == _p6
@@ -234,8 +330,10 @@ def p_binary_operator(p):
 def p_binary_operation_rvalue(p):
     """bin_op_rvalue : ID
                      | constant"""
-    if isinstance(p[1], BitVecNumRef):  # TODO Other constant types
+    if isinstance(p[1], int):  # TODO Other constant types
         p[0] = ('const', p[1])
+    elif p[1].startswith("REF_"):
+        p[0] = ('reference', p[1])
     else:
         p[0] = ('symbol', p[1])
 
@@ -243,7 +341,7 @@ def p_binary_operation_rvalue(p):
 def _rvalue_processor(rvalue):
     if rvalue[0] == 'const':
         return rvalue[1]
-    else:
+    else:  # References and Symbols
         return symbol_table_manager.get_z3_variable(rvalue[1], plus_plus=True)
 
 
@@ -292,6 +390,32 @@ def p_condition(p):
         p[0] = smt_variable == BoolVal(True)
     else:
         pass
+
+
+def p_index(p):
+    """expression : ID LPAREN type RPAREN ARROW ID LBRACKETS bin_op_rvalue RBRACKETS"""
+    p[0] = BoolVal(True)  # Parsed before in variables finding
+
+
+def p_mapping_assignment(p):
+    """expression : ID LPAREN ARROW ID RPAREN ASSIGNMENT bin_op_rvalue LPAREN type RPAREN"""
+    #               1               4                         7
+    if isinstance(p[7], tuple):  # It's a variable
+        p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
+        _p7 = symbol_table_manager.get_z3_variable(p[7][1], plus_plus=True)
+        p[0] = p[0] == _p7
+    else:
+        p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
+        p[0] = p[0] == p[7]
+
+    p[0] = And(p[0], symbol_table_manager.get_z3_all_except_reference_conds(p[1]))
+
+
+def p_initialize_globals(p):
+    """expression : INITIALIZE_GLOBS"""
+    p[0] = BoolVal(True)
+    for reference_name in symbol_table_manager.get_mapping_references:
+        p[0] = And(p[0], symbol_table_manager.get_z3_variable(reference_name, plus_plus=True, save=False) == 0)
 
 
 IR_PARSER = yacc.yacc(start="expression")  # TODO Add more yacc patterns
