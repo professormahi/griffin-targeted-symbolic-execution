@@ -26,7 +26,7 @@ parser.add_argument('--target', dest='target', type=int, required=False,
                     help="The line-number which the target of Targeted Backward Symbolic Execution")
 
 # CFG Options
-parser.add_argument('--cfg-strategy', dest='cfg_strategy', default='',
+parser.add_argument('--cfg-strategy', dest='cfg_strategy', default='compound',
                     help="The CFG drawing strategy. Choose compound for compounding all functions.")
 parser.add_argument('--cfg-expr-type', dest='cfg_expr_type', default='sol', choices=['sol', 'irs', 'irs_ssa'],
                     help="The expressions' type for CFG. Available options are 'sol' for solidity expressions, "

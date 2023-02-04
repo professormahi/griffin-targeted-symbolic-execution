@@ -174,6 +174,17 @@ class SolFile:
         return result
 
     @cached_property
+    def insource_target_annotation(self):
+        """
+        Find the target with @target annotation in the source code
+        :return: (lineno, target line) Tuple.
+        """
+        for indx, line in enumerate(self.source.split('\n')):
+            if "@target" in line:
+                return indx, line
+        return -1, None
+
+    @cached_property
     def cfg(self) -> nx.MultiDiGraph:
         cfg_x = nx.MultiDiGraph()
 
@@ -198,10 +209,16 @@ class SolFile:
                 }
 
                 # Checks if this node is the target of Targeted Backward Symbolic Execution
-                is_target = \
-                    args.target is not None \
-                    and node.expression is not None \
-                    and args.target in node.source_mapping.lines
+                if args.target is not None:
+                    is_target = \
+                        node.expression is not None \
+                        and args.target in node.source_mapping.lines
+                else:  # Read @target annotation if no --target is specified
+                    lineno, _ = self.insource_target_annotation
+                    is_target = \
+                        lineno != -1 \
+                        and node.expression is not None \
+                        and lineno in node.source_mapping.lines
                 is_target = is_target or False  # Set False if this is None
 
                 cfg_x.add_node(
