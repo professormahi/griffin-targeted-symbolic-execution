@@ -147,7 +147,7 @@ class WalkTree:
                         variables[matched.group("variable_name")] = matched.group("variable_type")
                     else:
                         rvalue_matched = re.match(
-                            r"\w+\(\w+\)\s?->\s?(?P<referee_name>\w+)\[(?P<index>\w+)]",
+                            r"\w+\(\w+\)\s?->\s?(?P<referee_name>\w+)\[(?P<index>[\w\.]+)]",
                             expr
                         )
                         referee_name = rvalue_matched.group('referee_name')

@@ -21,6 +21,7 @@ reserved = {
     'CONDITION': 'CONDITION',
 
     'INITIALIZE_GLOBS': 'INITIALIZE_GLOBS',
+    'TRANSACTION_STARTS': 'TRANSACTION_STARTS',
 }
 
 # Lex Tokens
@@ -36,6 +37,7 @@ tokens = [
 
     # Indexing/Membership Operators
     'ARROW',
+    'DOT',
 
     # Binary Operations
     # https://github.com/crytic/slither/wiki/SlithIR#binary-operation
@@ -110,6 +112,7 @@ t_BINARY_BOOLEAN_OPS = r'(\&\&)|(\|\|)'
 
 # Indexing/Membership Operators
 t_ARROW = r'->'
+t_DOT = r'\.'
 
 # Ignore
 t_ignore = ' \t'
@@ -167,6 +170,7 @@ class SymbolTableManager:
         else:
             return {
                 'bool': BoolSort(),
+                'address': IntSort(),  # TODO Even better sort
             }.get(variable_type)
 
     @classmethod
@@ -180,6 +184,7 @@ class SymbolTableManager:
         else:
             return {
                 'bool': Bool,
+                'address': Int,  # TODO Even better sort
             }.get(variable_type)
 
     @classmethod
@@ -187,7 +192,7 @@ class SymbolTableManager:
         if 'mapping' in variable_type:
             matched = re.match(
                 r"REF\[mapping\((?P<mapping_from>\w+)\s?=>\s?"
-                r"(?P<mapping_to>\w+)\),\s(?P<referee>\w+),\s(?P<index>\w+)]",
+                r"(?P<mapping_to>\w+)\),\s(?P<referee>\w+),\s(?P<index>[\w\.]+)]",
                 variable_type
             )
             return (
@@ -248,7 +253,10 @@ class SymbolTableManager:
             )
 
     def set_types(self, types):
-        self.__types = types
+        self.__types = {
+            **types,
+            'msg.sender': 'address',
+        }
 
     def clear_table(self):
         self.__symbols = {}
@@ -329,8 +337,11 @@ def p_binary_operator(p):
 
 def p_binary_operation_rvalue(p):
     """bin_op_rvalue : ID
+                     | ID DOT ID
                      | constant"""
-    if isinstance(p[1], int):  # TODO Other constant types
+    if len(p) == 4:
+        p[0] = ('builtin', p[1:])  # TODO better implementation for custom classes
+    elif isinstance(p[1], int):  # TODO Other constant types
         p[0] = ('const', p[1])
     elif p[1].startswith("REF_"):
         p[0] = ('reference', p[1])
@@ -416,6 +427,14 @@ def p_initialize_globals(p):
     p[0] = BoolVal(True)
     for reference_name in symbol_table_manager.get_mapping_references:
         p[0] = And(p[0], symbol_table_manager.get_z3_variable(reference_name, plus_plus=True, save=False) == 0)
+
+
+def p_transaction_starts(p):
+    """expression : TRANSACTION_STARTS"""
+    p[0] = BoolVal(True)
+
+    # Only for changing the msg.sender index in each transaction
+    symbol_table_manager.get_z3_variable('msg.sender', plus_plus=True, save=True)
 
 
 IR_PARSER = yacc.yacc(start="expression")  # TODO Add more yacc patterns

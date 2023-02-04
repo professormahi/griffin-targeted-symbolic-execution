@@ -193,7 +193,7 @@ class SolFile:
 
             cfg_x.add_node("START_NODE", label=f"start", irs=["INITIALIZE_GLOBS", ])
             cfg_x.add_node("END_NODE", label="end")
-            cfg_x.add_node("AFTER_CREATION", label="after constructor")
+            cfg_x.add_node("AFTER_CREATION", label="after constructor", irs=['TRANSACTION_STARTS', ])
             cfg_x.add_node("AFTER_TX", label="after transaction")
 
             cfg_x.add_edge("AFTER_TX", "END_NODE")
