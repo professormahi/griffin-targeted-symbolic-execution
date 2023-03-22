@@ -1,9 +1,9 @@
-from arg_parser import args
 from exporters import export_requested_parameters
 from sol_utils import SolFile
+from workspace import workspace
 
 if __name__ == '__main__':
-    contract = SolFile(args.contract)
+    contract = SolFile(f"{workspace}/source.sol")
 
     export_requested_parameters(contract)
 
