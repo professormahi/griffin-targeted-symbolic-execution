@@ -19,6 +19,7 @@ reserved = {
 
     'RETURN': 'RETURN',
     'CONDITION': 'CONDITION',
+    'SOLIDITY_CALL': 'SOLIDITY_CALL',
 
     'INITIALIZE_GLOBS': 'INITIALIZE_GLOBS',
     'TRANSACTION_STARTS': 'TRANSACTION_STARTS',
@@ -59,6 +60,10 @@ tokens = [
     'UINT',
     'UINTN',
     'BOOL',
+    'STRING',
+
+    'COMMA',
+    'VOID',
 ]
 tokens.extend(list(reserved.values()))  # Add reserved keywords to tokens
 
@@ -80,6 +85,10 @@ def t_ID(t):
             t.value = type_token.value
     except EthereumError:  # Do nothing if this is not a type token
         pass
+    if t.value == 'None':
+        t.type = "VOID"
+    if t.value == 'string':
+        t.type = "STRING"
 
     return t
 
@@ -122,6 +131,8 @@ t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_LBRACKETS = r'\['
 t_RBRACKETS = r'\]'
+
+t_COMMA = r','
 
 
 def t_error(t):
@@ -292,7 +303,9 @@ def p_error(p):
 def p_type(p: yacc.YaccProduction):
     """type : BOOL
             | UINT
-            | UINTN"""
+            | UINTN
+            | VOID
+            | STRING"""
     p[0] = p[1]
 
 
@@ -340,7 +353,7 @@ def p_binary_operation_rvalue(p):
                      | ID DOT ID
                      | constant"""
     if len(p) == 4:
-        p[0] = ('builtin', p[1:])  # TODO better implementation for custom classes
+        p[0] = ('builtin', ''.join(p[1:]))  # TODO better implementation for custom classes
     elif isinstance(p[1], int):  # TODO Other constant types
         p[0] = ('const', p[1])
     elif p[1].startswith("REF_"):
@@ -435,6 +448,45 @@ def p_transaction_starts(p):
 
     # Only for changing the msg.sender index in each transaction
     symbol_table_manager.get_z3_variable('msg.sender', plus_plus=True, save=True)
+
+
+def p_type_list(p):
+    """type_list : type COMMA type_list
+                 | type"""
+    #     0          1    2       3
+    if len(p) == 2:
+        p[0] = [p[1], ]
+    else:
+        p[0] = [p[1], *p[3]]
+
+
+def p_func_string_param(p):
+    """func_string_param : ID func_string_param
+                         | ID
+                         | DOT"""
+    if len(p) == 2:
+        p[0] = p[1]
+    else:
+        p[0] = f"{p[1]} {p[2]}"
+
+
+def p_rvalue_list(p):
+    """rvalue_list : bin_op_rvalue COMMA rvalue_list
+                   | func_string_param COMMA rvalue_list
+                   | bin_op_rvalue
+                   | func_string_param"""
+    if len(p) == 2:
+        p[0] = [p[1], ]
+    else:
+        p[0] = [p[1], *p[3]]
+
+
+def p_solidity_call(p):
+    """expression : ID LPAREN type RPAREN EQUAL SOLIDITY_CALL ID LPAREN type_list RPAREN LPAREN rvalue_list RPAREN"""
+    #      0        1     2    3     4      5         6       7    8       9        10     11        12       13
+    p[0] = {
+        "require": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True)
+    }.get(p[7])(params=p[12], declaration=p[9])
 
 
 IR_PARSER = yacc.yacc(start="expression")  # TODO Add more yacc patterns

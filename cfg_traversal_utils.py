@@ -145,15 +145,16 @@ class WalkTree:
                 if matched := compiled_pattern.match(expr):
                     if matched.group("variable_name").startswith("REF_") is False:
                         variables[matched.group("variable_name")] = matched.group("variable_type")
-                    else:
-                        rvalue_matched = re.match(
+                    elif rvalue_matched := re.match(
                             r"\w+\(\w+\)\s?->\s?(?P<referee_name>\w+)\[(?P<index>[\w\.]+)]",
                             expr
-                        )
+                    ):
                         referee_name = rvalue_matched.group('referee_name')
                         indx = rvalue_matched.group('index')
                         variables[matched.group("variable_name")] = f'REF[{variables[referee_name]}, {referee_name}, ' \
                                                                     f'{indx}]'
+                    else:
+                        pass  # TODO REF_i -> REF_j.member
 
         # There is bug in SlitherIR that for `rvalue = ! lvalue` and `rvalue = ~ lvalue` no type is applied
         # TODO: Add issue to Slither and fix this. After that, we should remove the following loop
