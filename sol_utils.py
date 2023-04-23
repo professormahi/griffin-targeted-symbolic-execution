@@ -206,6 +206,7 @@ class SolFile:
                     'sol': [str(node.expression or ''), ],
                     'irs': [str(ir) for ir in node.irs],
                     'irs_ssa': [str(ir) for ir in node.irs_ssa],
+                    'node_type': node.type.name,
                 }
 
                 # Checks if this node is the target of Targeted Backward Symbolic Execution

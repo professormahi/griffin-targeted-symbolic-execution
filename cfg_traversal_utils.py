@@ -1,6 +1,6 @@
 import re
 from functools import cached_property
-from typing import Callable
+from typing import Callable, Optional
 
 import networkx as nx
 from z3 import Solver, sat
@@ -22,11 +22,28 @@ class CFGPath:
     def __get_reversed_irs(self, node):
         return list(reversed(self.__get_irs(node)))
 
+    def __get_prev_edge(self, node_index: int) -> Optional[str]:
+        if node_index == 0:
+            return None
+        return self.cfg.get_edge_data(
+            self.nodes[node_index - 1],
+            self.nodes[node_index],
+        )[0]['label']
+
     @cached_property
     def expressions(self):
         res = []
-        for node in self.nodes:
-            res.extend(self.__get_reversed_irs(node))  # Reversing is required to have correct backward path
+        for indx, node in enumerate(self.nodes):
+            # TODO: Also do this about for statements
+            if self.cfg.nodes[node].get('node_type') == "IF" and self.__get_prev_edge(indx) == 'False':
+                res.extend(
+                    map(
+                        lambda expr: expr if 'CONDITION' not in expr else expr.replace("CONDITION", "CONDITION NOT"),
+                        self.__get_reversed_irs(node),
+                    )
+                )
+            else:
+                res.extend(self.__get_reversed_irs(node))  # Reversing is required to have correct backward path
         return res
 
     @cached_property

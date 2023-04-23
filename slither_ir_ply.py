@@ -1,28 +1,28 @@
 import logging
 import re
 import time
-from functools import cached_property, partial
+from functools import cached_property
 from typing import List
 
 import ply.lex as lex
 import ply.yacc as yacc
-from z3 import BitVec, BitVecVal, BoolVal, Bool, BitVecNumRef, And, Or, Not, Function, IntSort, BoolSort, Int, ForAll, \
-    Implies
 from manticore.ethereum.abitypes import lexer as type_lexer
 from manticore.exceptions import EthereumError
+from z3 import BitVecVal, BoolVal, Bool, And, Or, Not, Function, IntSort, BoolSort, Int, ForAll, \
+    Implies
 
 logger = logging.getLogger('SlitherIRPLY')
 
 # Reserved Keywords
 reserved = {
-    'input': 'INPUT',
-
     'RETURN': 'RETURN',
     'CONDITION': 'CONDITION',
     'SOLIDITY_CALL': 'SOLIDITY_CALL',
 
     'INITIALIZE_GLOBS': 'INITIALIZE_GLOBS',
     'TRANSACTION_STARTS': 'TRANSACTION_STARTS',
+
+    'NOT': 'NOT',
 }
 
 # Lex Tokens
@@ -59,6 +59,7 @@ tokens = [
     # From Manticore https://github.com/trailofbits/manticore/blob/master/manticore/ethereum/abitypes.py
     'UINT',
     'UINTN',
+    'INTN',
     'BOOL',
     'STRING',
 
@@ -304,6 +305,7 @@ def p_type(p: yacc.YaccProduction):
     """type : BOOL
             | UINT
             | UINTN
+            | INTN
             | VOID
             | STRING"""
     p[0] = p[1]
@@ -408,8 +410,13 @@ def p_unary_operation(p):
 
 def p_condition(p):
     """expression : CONDITION ID
-                  | CONDITION constant"""
-    if isinstance(p[2], str):  # CONDITION ID
+                  | CONDITION constant
+                  | CONDITION NOT ID
+                  | CONDITION NOT constant"""
+    if len(p) == 4 and p[2] == 'NOT' and isinstance(p[3], str):  # CONDITION NOT ID
+        smt_variable = symbol_table_manager.get_z3_variable(p[3])
+        p[0] = smt_variable == BoolVal(False)
+    elif isinstance(p[2], str):  # CONDITION ID
         smt_variable = symbol_table_manager.get_z3_variable(p[2])
         p[0] = smt_variable == BoolVal(True)
     else:
