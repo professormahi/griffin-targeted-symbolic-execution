@@ -115,7 +115,7 @@ t_ASSIGNMENT = r':='
 # https://github.com/crytic/slither/wiki/SlithIR#binary-operation
 t_EQUAL = r'='
 t_COND_EQUAL = r'=='
-t_COND_INEQUALITY = r'<|>|(<=)|(>=)'
+t_COND_INEQUALITY = r'(<=)|(>=)|<|>'
 t_MATH_OPS = r'\-(?!>)|\+|\*|\/|%'
 t_UNARY_OPS = r'\!|\~'
 t_BINARY_BOOLEAN_OPS = r'(\&\&)|(\|\|)'
