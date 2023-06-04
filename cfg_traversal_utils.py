@@ -1,6 +1,6 @@
 import re
 from functools import cached_property
-from typing import Callable, Optional
+from typing import Callable, Optional, List
 
 import networkx as nx
 from z3 import Solver, sat
@@ -74,6 +74,22 @@ class CFGPath:
             return []
         else:
             return self.solver.model()
+
+    @cached_property
+    def txs(self) -> List | None:
+        if self.is_sat is False:
+            return None
+
+        _txs = []
+        _nodes = list(reversed(list(self.nodes)))
+        for prev, cur, nxt in zip(_nodes, _nodes[1:], _nodes[2:]):
+            if cur == 'AFTER_CREATION':
+                _txs.append({
+                    'function': nxt.split("_")[0],
+                    # TODO: add others and arguments
+                })
+
+        return _txs
 
 
 class Heuristic:
