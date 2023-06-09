@@ -1,7 +1,7 @@
 import logging
 import re
 import time
-from functools import cached_property
+from functools import cached_property, partial
 from typing import List
 
 import ply.lex as lex
@@ -9,7 +9,7 @@ import ply.yacc as yacc
 from manticore.ethereum.abitypes import lexer as type_lexer
 from manticore.exceptions import EthereumError
 from z3 import BitVecVal, BoolVal, Bool, And, Or, Not, Function, IntSort, BoolSort, Int, ForAll, \
-    Implies
+    Implies, BitVec, ULT, UGT, ULE, UGE, UDiv, URem
 
 logger = logging.getLogger('SlitherIRPLY')
 
@@ -20,6 +20,7 @@ reserved = {
     'SOLIDITY_CALL': 'SOLIDITY_CALL',
 
     'INITIALIZE_GLOBS': 'INITIALIZE_GLOBS',
+    'INITIALIZE_FUNC_PARAMS': 'INITIALIZE_FUNC_PARAMS',
     'TRANSACTION_STARTS': 'TRANSACTION_STARTS',
 
     'NOT': 'NOT',
@@ -188,15 +189,15 @@ class SymbolTableManager:
     @classmethod
     def z3_types(cls, variable_type):
         if variable_type.startswith("uint"):
-            return Int  # TODO Maybe support BitVec later
+            return partial(BitVec, bv=int(variable_type.replace("uint", "")))
         elif variable_type.startswith("int"):
-            return Int  # TODO Maybe support BitVec later
+            return partial(BitVec, bv=int(variable_type.replace("int", "")))
         elif variable_type.startswith("REF"):
             raise NotImplementedError
         else:
             return {
                 'bool': Bool,
-                'address': Int,  # TODO Even better sort
+                'address': partial(BitVec, bv=256),
             }.get(variable_type)
 
     @classmethod
@@ -327,7 +328,7 @@ def p_assignment(p):
     """expression : ID LPAREN type RPAREN ASSIGNMENT constant LPAREN type RPAREN
                   | ID LPAREN type RPAREN ASSIGNMENT ID LPAREN type RPAREN"""
     #       0        1    2    3     4        5       6       7     8     9
-    if p[3] != p[8]:
+    if p[3] != p[8] and type(p[6]) != int:
         raise SlitherIRSyntaxError(p)
 
     if isinstance(p[6], str):  # It's a variable/reference
@@ -375,20 +376,37 @@ def _rvalue_processor(rvalue):
 def p_binary_operation(p):
     """expression : ID LPAREN type RPAREN EQUAL bin_op_rvalue bin_op bin_op_rvalue"""
     #      0        1    2     3      4     5         6         7          8
-    operation = {
-        '<': lambda a, b: a < b,
-        '>': lambda a, b: a > b,
-        '<=': lambda a, b: a <= b,
-        '>=': lambda a, b: a >= b,
+    if p[3][0].startswith("uint"):
+        funcs = {
+            '<': ULT,
+            '>': UGT,
+            '<=': ULE,
+            '>=': UGE,
+            '-': lambda a, b: a - b,
+            '+': lambda a, b: a + b,
+            '*': lambda a, b: a * b,
+            '%': URem,
+            '/': UDiv,
+        }
+    else:
+        funcs = {
+            '<': lambda a, b: a < b,
+            '>': lambda a, b: a > b,
+            '<=': lambda a, b: a <= b,
+            '>=': lambda a, b: a >= b,
+            '-': lambda a, b: a - b,
+            '+': lambda a, b: a + b,
+            '*': lambda a, b: a * b,
+            '%': lambda a, b: a % b,
+            '/': lambda a, b: a / b,
+        }
+
+    funcs.update({
         '==': lambda a, b: a == b,
-        '-': lambda a, b: a - b,
-        '+': lambda a, b: a + b,
-        '*': lambda a, b: a * b,
-        '%': lambda a, b: a % b,
-        '/': lambda a, b: a / b,
         '&&': lambda a, b: And(a, b),
         '||': lambda a, b: Or(a, b),
-    }.get(p[7])
+    })
+    operation = funcs.get(p[7])
 
     p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
     p[0] = p[0] == operation(
@@ -455,6 +473,14 @@ def p_transaction_starts(p):
 
     # Only for changing the msg.sender index in each transaction
     symbol_table_manager.get_z3_variable('msg.sender', plus_plus=True, save=True)
+
+
+def p_initialize_func_params(p):
+    """expression : INITIALIZE_FUNC_PARAMS ID"""
+    #      0                1              2
+    p[0] = BoolVal(True)
+
+    symbol_table_manager.get_z3_variable(p[2], plus_plus=True, save=True)
 
 
 def p_type_list(p):

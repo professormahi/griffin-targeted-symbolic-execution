@@ -208,6 +208,8 @@ class SolFile:
                     'irs_ssa': [str(ir) for ir in node.irs_ssa],
                     'node_type': node.type.name,
                 }
+                if node.type.name == "ENTRYPOINT":
+                    expr["irs"] = [f"INITIALIZE_FUNC_PARAMS {param.name}" for param in func.variables if param.name]
 
                 # Checks if this node is the target of Targeted Backward Symbolic Execution
                 if args.target is not None:
