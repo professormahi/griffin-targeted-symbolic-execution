@@ -275,6 +275,10 @@ class SymbolTableManager:
         self.__symbols = {}
         self.__types = {}
 
+    @property
+    def symbols(self):
+        return self.__symbols
+
 
 symbol_table_manager = SymbolTableManager.get_instance()
 

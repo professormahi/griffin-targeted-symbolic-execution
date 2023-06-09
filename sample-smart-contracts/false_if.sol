@@ -1,3 +1,4 @@
+// @result [{'function': 'check', 'params': {'input': 11}}]
 pragma solidity ^0.8.6;
 
 contract falseIf {

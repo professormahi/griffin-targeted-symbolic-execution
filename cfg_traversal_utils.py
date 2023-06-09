@@ -6,7 +6,7 @@ import networkx as nx
 from z3 import Solver, sat
 
 import utils
-from slither_ir_ply import SlitherIR, SymbolTableManager
+from slither_ir_ply import SlitherIR, SymbolTableManager, symbol_table_manager
 
 
 class CFGPath:
@@ -73,7 +73,8 @@ class CFGPath:
         if self.is_sat is False:
             return []
         else:
-            return self.solver.model()
+            model = self.solver.model()
+            return {value.name(): model[value] for value in model}
 
     @cached_property
     def txs(self) -> List | None:
@@ -82,11 +83,18 @@ class CFGPath:
 
         _txs = []
         _nodes = list(reversed(list(self.nodes)))
+        _symbols = symbol_table_manager.symbols.copy()
         for prev, cur, nxt in zip(_nodes, _nodes[1:], _nodes[2:]):
-            if cur == 'AFTER_CREATION':
+            # TODO: Maybe add default constructor
+            if prev in ['AFTER_CREATION', "START_NODE"] and cur != "AFTER_CREATION":
+                params = self.cfg.nodes[cur].get("params") or []
+                params_values = {param: self.sat_inputs[f"{param}_{_symbols[param]}"] for param in params}
+                for param in params:
+                    _symbols[param] -= 1
+
                 _txs.append({
-                    'function': nxt.split("_")[0],
-                    # TODO: add others and arguments
+                    'function': cur.split("_")[0],
+                    'params': params_values
                 })
 
         return _txs
