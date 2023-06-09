@@ -269,6 +269,7 @@ class SymbolTableManager:
         self.__types = {
             **types,
             'msg.sender': 'address',
+            'msg.value': 'uint256'
         }
 
     def clear_table(self):
@@ -464,19 +465,32 @@ def p_mapping_assignment(p):
     p[0] = And(p[0], symbol_table_manager.get_z3_all_except_reference_conds(p[1]))
 
 
+def init_msg(p):
+    # Only for changing the msg index in each transaction
+    msg_sender = symbol_table_manager.get_z3_variable('msg.sender', plus_plus=True, save=True)
+    p[0] = And(p[0], Or(
+        msg_sender == BitVecVal(0xF0C5FBBBd11a1fC64Fc6c596DA2432216d9bb30E, bv=256),
+        msg_sender == BitVecVal(0x5b1B7e4A457f129eD18550A3ACFc952b13479088, bv=256),
+        msg_sender == BitVecVal(0x5b1B7e4A457f129eD18550A3ACFc952b13479088, bv=256),
+        msg_sender == BitVecVal(0xfA27f42132473af1fB5a568e77b19cb85BB4FC5f, bv=256),
+    ))
+    p[0] = And(p[0], symbol_table_manager.get_z3_variable('msg.value', plus_plus=True, save=True) >= 0)
+
+
 def p_initialize_globals(p):
     """expression : INITIALIZE_GLOBS"""
     p[0] = BoolVal(True)
     for reference_name in symbol_table_manager.get_mapping_references:
         p[0] = And(p[0], symbol_table_manager.get_z3_variable(reference_name, plus_plus=True, save=False) == 0)
 
+    init_msg(p)
+
 
 def p_transaction_starts(p):
     """expression : TRANSACTION_STARTS"""
     p[0] = BoolVal(True)
 
-    # Only for changing the msg.sender index in each transaction
-    symbol_table_manager.get_z3_variable('msg.sender', plus_plus=True, save=True)
+    init_msg(p)
 
 
 def p_initialize_func_params(p):
@@ -548,6 +562,8 @@ class SlitherIR:
 
     @cached_property
     def constraints(self):
+        if self.expr.startswith("Emit"):  # TODO Add more to-ignore expressions
+            return []
         return IR_PARSER.parse(self.expr, lexer=IR_LEXER)
 
 

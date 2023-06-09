@@ -88,6 +88,7 @@ class CFGPath:
             # TODO: Maybe add default constructor
             if prev in ['AFTER_CREATION', "START_NODE"] and cur != "AFTER_CREATION":
                 params = self.cfg.nodes[cur].get("params") or []
+                params = [*params, 'msg.sender', 'msg.value']
                 params_values = {param: self.sat_inputs[f"{param}_{_symbols[param]}"] for param in params}
                 for param in params:
                     _symbols[param] -= 1
