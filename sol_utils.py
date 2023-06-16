@@ -181,7 +181,7 @@ class SolFile:
         """
         for indx, line in enumerate(self.source.split('\n')):
             if "@target" in line:
-                return indx, line
+                return indx + 1, line
         return -1, None
 
     @cached_property

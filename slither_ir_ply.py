@@ -380,6 +380,10 @@ def p_binary_operation_rvalue(p):
 def _rvalue_processor(rvalue):
     if rvalue[0] == 'const':
         return rvalue[1]
+    elif rvalue[1] == "True":
+        return BoolVal(True)
+    elif rvalue[1] == "False":
+        return BoolVal(False)
     else:  # References and Symbols
         return symbol_table_manager.get_z3_variable(rvalue[1], plus_plus=True)
 
@@ -547,7 +551,8 @@ def p_solidity_call(p):
     """expression : ID LPAREN type RPAREN EQUAL SOLIDITY_CALL ID LPAREN type_list RPAREN LPAREN rvalue_list RPAREN"""
     #      0        1     2    3     4      5         6       7    8       9        10     11        12       13
     p[0] = {
-        "require": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True)
+        "require": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True),
+        "assert": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True)
     }.get(p[7])(params=p[12], declaration=p[9])
 
 

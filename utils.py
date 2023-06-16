@@ -1,6 +1,8 @@
 import os
 import sys
 
+from workspace import workspace
+
 
 class disabled_stdout:
     def __enter__(self):
@@ -24,3 +26,6 @@ def log(msg: str, level='info') -> None:
 
     if args.debug:
         print(f'[{level}] {msg}', file=sys.stderr)
+
+    with open(f"{workspace}/out.log", "a") as f:
+        print(f'[{level}] {msg}', file=f)

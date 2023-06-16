@@ -5,7 +5,6 @@ from datetime import datetime
 from pathlib import Path
 
 from arg_parser import args
-from utils import log
 
 OUTPUT_DIR = pathlib.Path('output/')
 
@@ -26,11 +25,9 @@ def copy_contract_to_workspace(_workspace):
 
 def prepare_workspace() -> Path:
     if args.clean_workspace:
-        log('cleaning workspace...', level='debug')
         shutil.rmtree(OUTPUT_DIR.__str__())
         OUTPUT_DIR.mkdir()
 
-    log('creating temp directory...', level='debug')
     tempdir = OUTPUT_DIR.joinpath(datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))
     __workspace = pathlib.Path(tempdir)
     __workspace.mkdir()
