@@ -1,3 +1,4 @@
+// @result [{'function': 'guess', 'params': {'index': 10, 'value': 1, 'msg.sender': 1428138688462619281669692826666878014146355723359, 'msg.value': 0}}, {'function': 'check', 'params': {'msg.sender': 1374572960896347799916170867579510675073583002382, 'msg.value': 0}}]
 pragma solidity ^0.8.6;
 
 contract mappingSample {

@@ -9,7 +9,7 @@ import ply.yacc as yacc
 from manticore.ethereum.abitypes import lexer as type_lexer
 from manticore.exceptions import EthereumError
 from z3 import BitVecVal, BoolVal, Bool, And, Or, Not, Function, IntSort, BoolSort, Int, ForAll, \
-    Implies, BitVec, ULT, UGT, ULE, UGE, UDiv, URem
+    Implies, BitVec, ULT, UGT, ULE, UGE, UDiv, URem, BitVecSort
 
 logger = logging.getLogger('SlitherIRPLY')
 
@@ -179,11 +179,11 @@ class SymbolTableManager:
     @classmethod
     def __z3_sorts(cls, variable_type):
         if "int" in variable_type:
-            return IntSort()
+            return BitVecSort(sz=int(variable_type.replace("uint", "").replace("int", "")))
         else:
             return {
                 'bool': BoolSort(),
-                'address': IntSort(),  # TODO Even better sort
+                'address': BitVecSort(sz=256),  # TODO Even better sort
             }.get(variable_type)
 
     @classmethod
@@ -192,6 +192,8 @@ class SymbolTableManager:
             return partial(BitVec, bv=int(variable_type.replace("uint", "")))
         elif variable_type.startswith("int"):
             return partial(BitVec, bv=int(variable_type.replace("int", "")))
+        elif variable_type.startswith("bv"):
+            return partial(BitVec, bv=int(variable_type.replace("bv", "")))
         elif variable_type.startswith("REF"):
             raise NotImplementedError
         else:
@@ -241,7 +243,12 @@ class SymbolTableManager:
 
         func, indx = self.get_z3_references(self.__types[symbol_name])
         from_sort = func.domain(0)
-        temp_variable = self.z3_types(from_sort.name().lower())(f"mapping_temp_{time.time_ns()}")
+        if from_sort.name().lower() == "bv":
+            temp_variable = self.z3_types(f"{from_sort.name().lower()}{from_sort.size()}")(
+                f"mapping_temp_{time.time_ns()}"
+            )
+        else:
+            temp_variable = self.z3_types(from_sort.name().lower())(f"mapping_temp_{time.time_ns()}")
 
         index_of_reference = self.get_variable(
             func.name(), plus_plus=plus_plus, save=save
