@@ -1,5 +1,5 @@
 // Reference: https://github.com/trailofbits/manticore/blob/master/examples/evm/simple_value_check.sol
-// @result [{'function': 'target', 'params': {'msg.sender': 1374572960896347799916170867579510675073583002382, 'msg.value': 0}}]
+// @result [{'function': 'target', 'params': {'msg.sender': 389733769954907444854315955391008805241582011460, 'msg.value': 0}}]
 
 contract Test {
     event Log(string);

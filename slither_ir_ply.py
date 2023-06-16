@@ -463,7 +463,10 @@ def p_mapping_assignment(p):
     #               1               4                         7
     if isinstance(p[7], tuple):  # It's a variable
         p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
-        _p7 = symbol_table_manager.get_z3_variable(p[7][1], plus_plus=True)
+        if p[7][0] == "const":
+            _p7 = p[7][1]
+        else:
+            _p7 = symbol_table_manager.get_z3_variable(p[7][1], plus_plus=True)
         p[0] = p[0] == _p7
     else:
         p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
@@ -476,10 +479,11 @@ def init_msg(p):
     # Only for changing the msg index in each transaction
     msg_sender = symbol_table_manager.get_z3_variable('msg.sender', plus_plus=True, save=True)
     p[0] = And(p[0], Or(
-        msg_sender == BitVecVal(0xF0C5FBBBd11a1fC64Fc6c596DA2432216d9bb30E, bv=256),
-        msg_sender == BitVecVal(0x5b1B7e4A457f129eD18550A3ACFc952b13479088, bv=256),
-        msg_sender == BitVecVal(0x5b1B7e4A457f129eD18550A3ACFc952b13479088, bv=256),
-        msg_sender == BitVecVal(0xfA27f42132473af1fB5a568e77b19cb85BB4FC5f, bv=256),
+        msg_sender == BitVecVal(0x1111111111111111111111111111111111111111, bv=256),
+        msg_sender == BitVecVal(0x2222222222222222222222222222222222222222, bv=256),
+        msg_sender == BitVecVal(0x3333333333333333333333333333333333333333, bv=256),
+        msg_sender == BitVecVal(0x4444444444444444444444444444444444444444, bv=256),
+        msg_sender == BitVecVal(0x5555555555555555555555555555555555555555, bv=256),
     ))
     p[0] = And(p[0], symbol_table_manager.get_z3_variable('msg.value', plus_plus=True, save=True) >= 0)
 
