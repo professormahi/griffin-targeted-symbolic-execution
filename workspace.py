@@ -19,7 +19,7 @@ def copy_contract_to_workspace(_workspace):
             for line in contract_file.readlines():
                 temp_file.write(re.sub(
                     r'(?P<statement>.+)//\s+@target\s+(?P<cond>.+)$',
-                    r'{if(\g<cond>){\n// @target\n}\n\g<statement>}\n',
+                    r'{if(\g<cond>){\n assert(true); // @target\n}\n\g<statement>}\n',
                     line
                 ))
 

@@ -444,10 +444,10 @@ def p_condition(p):
                   | CONDITION NOT ID
                   | CONDITION NOT constant"""
     if len(p) == 4 and p[2] == 'NOT' and isinstance(p[3], str):  # CONDITION NOT ID
-        smt_variable = symbol_table_manager.get_z3_variable(p[3])
+        smt_variable = symbol_table_manager.get_z3_variable(p[3], plus_plus=True)
         p[0] = smt_variable == BoolVal(False)
     elif isinstance(p[2], str):  # CONDITION ID
-        smt_variable = symbol_table_manager.get_z3_variable(p[2])
+        smt_variable = symbol_table_manager.get_z3_variable(p[2], plus_plus=True)
         p[0] = smt_variable == BoolVal(True)
     else:
         pass
