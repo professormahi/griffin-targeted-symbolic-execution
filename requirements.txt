@@ -4,7 +4,7 @@ solc-select==0.2.1
 ipython==8.1.1
 py-solc-x==1.1.1
 pyevmasm==0.2.3
-slither-analyzer==0.9.1
+slither-analyzer
 protobuf==3.20.1
 manticore==0.3.7
 

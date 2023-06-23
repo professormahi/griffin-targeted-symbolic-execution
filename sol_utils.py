@@ -216,13 +216,13 @@ class SolFile:
                 if args.target is not None:
                     is_target = \
                         node.expression is not None \
-                        and args.target in node.source_mapping.lines
+                        and args.target in node.source_mapping['lines']
                 else:  # Read @target annotation if no --target is specified
                     lineno, _ = self.insource_target_annotation
                     is_target = \
                         lineno != -1 \
                         and node.expression is not None \
-                        and lineno in node.source_mapping.lines
+                        and lineno in node.source_mapping['lines']
                 is_target = is_target or False  # Set False if this is None
 
                 cfg_x.add_node(
@@ -230,7 +230,7 @@ class SolFile:
                     label=f"{func.name}_{node.node_id}{'*' if is_target else ''}|node_type = {node.type}\n\nEXPRESSION:"
                           f" {escape_expression(END_LINE.join(expr[args.cfg_expr_type]))}",
                     shape="record",
-                    lines=node.source_mapping.lines,
+                    lines=node.source_mapping['lines'],
                     is_target=is_target,
                     **expr,
                 )

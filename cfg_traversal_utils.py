@@ -217,6 +217,7 @@ class WalkTree:
             cfg_path = self.__cfg_path_for(option)
 
             utils.log(f"Extending {option_name}", level='debug')
+            utils.log(f"The new path is {cfg_path.nodes}", level='debug')
             for i in range(len(cfg_path.expressions)):
                 utils.log(
                     f"option={option_name} # {cfg_path.expressions[i].ljust(50)} {cfg_path.constraints[i]}",
