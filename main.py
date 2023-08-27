@@ -16,6 +16,7 @@ if __name__ == '__main__':
         print("No path found from target to smart contract entrypoint")
     else:
         log(f"Sat inputs: {cfg_path.sat_inputs}")
+        log(cfg_path.txs)
         print(cfg_path.txs)
 
     exec_time = datetime.utcnow().timestamp() - start_time
