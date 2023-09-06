@@ -241,14 +241,16 @@ class SolFile:
 
                 if self.cfg_strategy == 'compound':
                     if func.name == 'slitherConstructorVariables' or func.name.startswith("constructor"):
-                        cfg_x.add_edge(
-                            u_for_edge='START_NODE',
-                            v_for_edge=f'{func.name}_{node.node_id}',
-                        )
-                        cfg_x.add_edge(
-                            u_for_edge=f'{func.name}_{node.node_id}',
-                            v_for_edge='AFTER_CREATION'
-                        )
+                        if node.node_id == 0:
+                            cfg_x.add_edge(
+                                u_for_edge='START_NODE',
+                                v_for_edge=f'{func.name}_0',
+                            )
+                        elif node.node_id == len(func.nodes) - 1:
+                            cfg_x.add_edge(
+                                u_for_edge=f'{func.name}_{node.node_id}',
+                                v_for_edge='AFTER_CREATION'
+                            )
                     elif node.type.name == 'ENTRYPOINT':
                         cfg_x.add_edge(
                             u_for_edge='AFTER_CREATION',

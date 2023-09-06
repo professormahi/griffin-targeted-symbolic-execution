@@ -326,7 +326,8 @@ def p_type(p: yacc.YaccProduction):
 
 def p_return_stmt(p):
     """expression : RETURN
-                  | RETURN ID"""
+                  | RETURN ID
+                  | RETURN NUMBER"""
     p[0] = BoolVal(True)  # no constraint for return statements
 
 
