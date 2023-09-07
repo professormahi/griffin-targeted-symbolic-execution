@@ -37,6 +37,8 @@ class SolcSelectHelper:
 
     @staticmethod
     def install(version: str) -> bool:
+        if version in SolcSelectHelper.versions:
+            return True
         with disabled_stdout():
             try:
                 solc_select.install_artifacts([version, ])
@@ -207,6 +209,10 @@ class SolFile:
                     'irs': [str(ir) for ir in node.irs],
                     'irs_ssa': [str(ir) for ir in node.irs_ssa],
                     'node_type': node.type.name,
+                    'state_variables_read': [str(var) for var in node.state_variables_read],
+                    'state_variables_written': [str(var) for var in node.state_variables_written],
+                    'func_state_variables_read': [str(var) for var in func.state_variables_read],
+                    'func_state_variables_written': [str(var) for var in func.state_variables_written],
                 }
                 if node.type.name == "ENTRYPOINT":
                     expr["params"] = [param.name for param in func.variables if param.name]

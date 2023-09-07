@@ -100,18 +100,31 @@ class CFGPath:
 
         return _txs
 
+    @cached_property
+    def not_written_variables(self) -> List:
+        rw = {}
+        for node in self.nodes:
+            for var in self.cfg.nodes[node].get('state_variables_read', []):
+                if var not in rw.keys():
+                    rw[var] = 0
+                rw[var] += 1
+            for var in self.cfg.nodes[node].get('state_variables_written', []):
+                rw[var] = 0
+        return [var for var in rw.keys() if rw[var] > 0]
+
 
 class Heuristic:
     @staticmethod
     def get_instance(graph: nx.MultiDiGraph, name: str = "floyd_warshall"):
         return {
-            "floyd_warshall": FloydWarshall
+            "floyd_warshall": FloydWarshall,
+            "state_variables_based": StateVariablesBasedHeuristic,
         }.get(name)(graph)
 
     def __init__(self, graph: nx.MultiDiGraph):
         self._graph = graph
 
-    def fitness(self, s: str, t: str):
+    def fitness(self, s: str, t: str, **extra):
         raise NotImplementedError
 
 
@@ -119,10 +132,27 @@ class FloydWarshall(Heuristic):
     def __init__(self, graph: nx.MultiDiGraph):
         super().__init__(graph)
 
-        self.__floyd_warshall_result = nx.floyd_warshall(self._graph)
+        self._floyd_warshall_result = nx.floyd_warshall(self._graph)
 
-    def fitness(self, s: str, t: str):
-        return self.__floyd_warshall_result[s][t]
+    def fitness(self, s: str, t: str, **extra):
+        return self._floyd_warshall_result[s][t]
+
+
+class StateVariablesBasedHeuristic(FloydWarshall):
+    def __init__(self, graph: nx.MultiDiGraph):
+        super().__init__(graph)
+
+    def fitness(self, s: str, t: str, **extra):
+        current_walk: CFGPath = extra.get('current_walk')
+        if s in list(self._graph.neighbors('AFTER_TX')) and current_walk.not_written_variables is not None:
+            if not current_walk.not_written_variables or (
+                    set(current_walk.not_written_variables) &
+                    set(self._graph.nodes[s].get('func_state_variables_written'))
+            ):
+                return self._floyd_warshall_result[s][t]
+            else:
+                return float('inf')
+        return self._floyd_warshall_result[s][t]
 
 
 class WalkTree:
@@ -162,7 +192,11 @@ class WalkTree:
     def __next_best_option(self):
         return min(
             self.__frontiers,
-            key=lambda item: self.__heuristic(self.__get_node_on_rev_cfg(item), self.entry_point),
+            key=lambda item: self.__heuristic(
+                self.__get_node_on_rev_cfg(item),
+                self.entry_point,
+                current_walk=self.__cfg_path_for(item),  # TODO: Better performance
+            ),
         )
 
     def __cfg_path_for(self, walk_node_id: int) -> CFGPath:
