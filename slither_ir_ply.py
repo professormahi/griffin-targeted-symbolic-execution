@@ -345,9 +345,6 @@ def p_assignment(p):
         raise SlitherIRSyntaxError(p)
 
     if isinstance(p[6], str):  # It's a variable/reference
-        if p[6].startswith("REF_"):  # reference
-            raise NotImplementedError()
-
         p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
         _p6 = symbol_table_manager.get_z3_variable(p[6], plus_plus=True)
         p[0] = p[0] == _p6
