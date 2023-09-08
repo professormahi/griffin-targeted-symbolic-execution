@@ -52,6 +52,8 @@ parser.add_boolean('--export-storage-layout', dest='export_storage_layout', defa
                    help="Store the storage-layout of the contract in output directory as `output.storage_layout`.")
 parser.add_boolean('--export-metadata', dest='export_metadata', default=True,
                    help="Store the metadata for the smart contract in output directory as `output.metadata`.")
+parser.add_boolean('--export-loc', dest='export_loc', default=True,
+                   help="Store the LoC for the smart contract in output directory as `output.loc`.")
 parser.add_boolean('--export-srcmap', dest='export_srcmap', default=True,
                    help="Store the srcmap for the smart contract in output directory as `output.srcmap`.")
 parser.add_boolean('--export-asm', dest='export_asm', default=True,

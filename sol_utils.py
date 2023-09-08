@@ -105,8 +105,18 @@ class SolFile:
 
     @cached_property
     def source(self) -> str:
+        utils.log(f"Path: {self.path}")
         with open(self.path) as f:
             return ''.join(f.readlines())
+
+    @cached_property
+    def loc(self) -> int:
+        val = 0
+        for line in self.source.split('\n'):
+            if line.strip() != '' and not line.startswith('//') and not line.startswith('/*'):
+                val += 1
+        utils.log(f"LoC: {val}")
+        return val
 
     @cached_property
     def compiled(self) -> dict:
@@ -201,6 +211,7 @@ class SolFile:
             cfg_x.add_edge("AFTER_TX", "END_NODE")
             cfg_x.add_edge("AFTER_TX", "AFTER_CREATION")
 
+        utils.log(f"Contract Name: {self.slither.contracts[0].name}")
         for func in self.slither.contracts[0].functions:  # TODO Support more contracts
             # Traverse all nodes and add to networkx version
             for node in func.nodes:
@@ -297,6 +308,8 @@ class SolFile:
                 u_for_edge='START_NODE',
                 v_for_edge='AFTER_CREATION'
             )
+
+        utils.log(f"#NUM_OF_CFG_NODES: {cfg_x.nodes.__len__()}", level='debug')
         return cfg_x
 
     @cached_property

@@ -2,7 +2,7 @@
 // @result [{'function': 'slitherConstructorVariables', 'params': {'msg.sender': 194866884977453722427157977695504402620791005730, 'msg.value': 0}}, {'function': 'test', 'params': {'input': 'any', 'could_overflow': 'any', 'msg.sender': 194866884977453722427157977695504402620791005730, 'msg.value': 0}}, {'function': 'test', 'params': {'input': 255, 'could_overflow': 'any', 'msg.sender': 194866884977453722427157977695504402620791005730, 'msg.value': 0}}]
 pragma solidity ^0.8.6;
 
-contract SymExExample {
+contract TwoTXOverflow {
     uint8 did_init = 0;
 
     event Log(string);

@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.6;
 
-contract Test {
+contract SimpleMapping {
     event Log(string);
     mapping(address => uint) private balances;
 
