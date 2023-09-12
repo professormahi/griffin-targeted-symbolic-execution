@@ -182,6 +182,7 @@ class WalkTree:
     @cached_property
     def __heuristic(self) -> Callable:
         from arg_parser import args
+        utils.log(f"Heuristic {args.heuristic}", level='debug')
 
         return Heuristic.get_instance(self.reversed_cfg, name=args.heuristic).fitness
 
