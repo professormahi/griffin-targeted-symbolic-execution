@@ -33,7 +33,11 @@ class SolcSelectHelper:
 
     @class_property
     def available_versions(self) -> list:
-        return list(solc_select.get_available_versions().keys())
+        # noinspection PyBroadException
+        try:
+            return list(solc_select.get_available_versions().keys())
+        except Exception:
+            return []
 
     @staticmethod
     def install(version: str) -> bool:

@@ -28,7 +28,7 @@ def prepare_workspace() -> Path:
         shutil.rmtree(OUTPUT_DIR.__str__())
         OUTPUT_DIR.mkdir()
 
-    tempdir = OUTPUT_DIR.joinpath(datetime.now().strftime("%Y-%m-%d-%H:%M:%S"))
+    tempdir = OUTPUT_DIR.joinpath(datetime.now().strftime("%Y-%m-%d-%H:%M:%S.%f"))
     __workspace = pathlib.Path(tempdir)
     __workspace.mkdir()
 
