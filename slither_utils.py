@@ -3,4 +3,6 @@ def escape_expression(expr: str) -> str:
         .replace(">=", "&ge;") \
         .replace("<=", "&le;") \
         .replace(">", "&gt;") \
-        .replace("<", "&lt;")
+        .replace("<", "&lt;") \
+        .replace("{", "\{") \
+        .replace("}", "\}")

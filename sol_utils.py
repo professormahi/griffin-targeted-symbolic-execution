@@ -1,7 +1,7 @@
 import json
 import re
 from functools import cached_property
-from typing import Union
+from typing import Union, List
 
 import networkx as nx
 import solcx
@@ -82,7 +82,7 @@ class SolcHelper:
         )
 
     @staticmethod
-    def compile_file(files: Union[str, list]) -> dict:
+    def compile_file(files: Union[str, list]) -> Union[dict, List]:
         result = solcx.compile_files(
             files,
             output_values=SolcHelper.output_values
@@ -90,7 +90,7 @@ class SolcHelper:
 
         if len(result.keys()) == 1:
             return result[next(iter(result))]  # returns the first
-        return result
+        return [{'contract': k, 'compiled': v} for k, v in result.items()]
 
 
 class SolFile:
@@ -127,7 +127,13 @@ class SolFile:
         if self.compiler_version:  # TODO otherwise?
             SolcSelectHelper.select(self.compiler_version, install=True)
 
-        return SolcHelper.compile_file(self.path)  # TODO what if there is more than one contract
+        compiled = SolcHelper.compile_file(self.path)  # TODO what if there is more than one contract
+        if isinstance(compiled, list):
+            for contract in compiled:
+                if self.slither.contracts[-1].name in contract['contract']:  # The Main Contract
+                    return contract['compiled']  # TODO: Maybe all
+        else:
+            return compiled
 
     def __get_compiled_param(self, param_name: str) -> Union[str, dict]:
         return self.compiled[param_name]
@@ -181,10 +187,10 @@ class SolFile:
         # TODO support more contracts
 
         # First, add global variables
-        result = {k: str(v.type) for k, v in self.slither.contracts[0].variables_as_dict.items()}
+        result = {k: str(v.type) for k, v in self.slither.contracts[-1].variables_as_dict.items()}
 
         # Second, add function variables
-        for func in self.slither.contracts[0].functions:
+        for func in self.slither.contracts[-1].functions:
             result = result | {k: str(v.type) for k, v in func.variables_as_dict.items()}
 
         return result
@@ -215,8 +221,8 @@ class SolFile:
             cfg_x.add_edge("AFTER_TX", "END_NODE")
             cfg_x.add_edge("AFTER_TX", "AFTER_CREATION")
 
-        utils.log(f"Contract Name: {self.slither.contracts[0].name}")
-        for func in self.slither.contracts[0].functions:  # TODO Support more contracts
+        utils.log(f"Contract Name: {self.slither.contracts[-1].name}")
+        for func in self.slither.contracts[-1].functions:  # TODO Support more contracts
             # Traverse all nodes and add to networkx version
             for node in func.nodes:
                 expr = {

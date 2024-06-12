@@ -216,20 +216,23 @@ class WalkTree:
         variables = self.contract.variables
 
         # The IR variables
-        compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\((?P<variable_type>\w+)\)\s(=|:=|->)")
+        compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\((?P<variable_type>(\w+)|(mapping\(.*\)))\)\s(=|:=|->)")
         for node in self.contract.cfg.nodes:
             for expr in self.contract.cfg.nodes[node].get("irs", []):
                 if matched := compiled_pattern.match(expr):
                     if matched.group("variable_name").startswith("REF_") is False:
                         variables[matched.group("variable_name")] = matched.group("variable_type")
                     elif rvalue_matched := re.match(
-                            r"\w+\(\w+\)\s?->\s?(?P<referee_name>\w+)\[(?P<index>[\w\.]+)]",
+                            r"\w+\(((\w+)|(mapping\(\w+\s=>\s\w+\)))\)\s?->\s?(?P<referee_name>\w+)\[(?P<index>[\w\.]+)]",
                             expr
                     ):
                         referee_name = rvalue_matched.group('referee_name')
                         indx = rvalue_matched.group('index')
-                        variables[matched.group("variable_name")] = f'REF[{variables[referee_name]}, {referee_name}, ' \
+                        try:
+                            variables[matched.group("variable_name")] = f'REF[{variables[referee_name]}, {referee_name}, ' \
                                                                     f'{indx}]'
+                        except KeyError as e:
+                            utils.log(f'Exception on variable gathering: {e} for expr: {expr}', level='error')
                     else:
                         pass  # TODO REF_i -> REF_j.member
 

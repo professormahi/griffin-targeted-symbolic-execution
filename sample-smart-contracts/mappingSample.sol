@@ -1,5 +1,5 @@
 // @result [{'function': 'guess', 'params': {'index': 10, 'value': 1, 'msg.sender': 389733769954907444854315955391008805241582011460, 'msg.value': 0}}, {'function': 'check', 'params': {'msg.sender': 487167212443634306067894944238761006551977514325, 'msg.value': 0}}]
-pragma solidity ^0.8.6;
+pragma solidity ^0.8.0;
 
 contract mappingSample {
     mapping(uint => uint) public dataStorage;

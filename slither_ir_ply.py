@@ -91,6 +91,8 @@ def t_ID(t):
         t.type = "VOID"
     if t.value == 'string':
         t.type = "STRING"
+    if t.value == 'address':
+        t.type = 'address'
 
     return t
 
@@ -116,7 +118,7 @@ t_ASSIGNMENT = r':='
 # https://github.com/crytic/slither/wiki/SlithIR#binary-operation
 t_EQUAL = r'='
 t_COND_EQUAL = r'=='
-t_COND_INEQUALITY = r'(<=)|(>=)|<|>'
+t_COND_INEQUALITY = r'(<=)|(>=)|<|>|!='
 t_MATH_OPS = r'\-(?!>)|\+|\*|\/|%'
 t_UNARY_OPS = r'\!|\~'
 t_BINARY_BOOLEAN_OPS = r'(\&\&)|(\|\|)'
@@ -220,7 +222,7 @@ class SymbolTableManager:
                 matched.group("index")
             )
         else:
-            pass  # TODO
+            pass  # TODO: e.g. we do not support 2d mapping now
 
     def get_z3_variable(self, symbol_name, plus_plus=False, save=False):
         if symbol_name.startswith("REF_"):  # References
