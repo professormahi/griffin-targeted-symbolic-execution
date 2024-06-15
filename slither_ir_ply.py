@@ -18,6 +18,8 @@ reserved = {
     'RETURN': 'RETURN',
     'CONDITION': 'CONDITION',
     'SOLIDITY_CALL': 'SOLIDITY_CALL',
+    'CONVERT': 'CONVERT',
+    'to': 'TO',
 
     'INITIALIZE_GLOBS': 'INITIALIZE_GLOBS',
     'INITIALIZE_FUNC_PARAMS': 'INITIALIZE_FUNC_PARAMS',
@@ -63,6 +65,7 @@ tokens = [
     'INTN',
     'BOOL',
     'STRING',
+    'ADDRESS',
 
     'COMMA',
     'VOID',
@@ -91,8 +94,8 @@ def t_ID(t):
         t.type = "VOID"
     if t.value == 'string':
         t.type = "STRING"
-    if t.value == 'address':
-        t.type = 'address'
+    if t.type == 'ADDRESS':
+        t.value = 'ADDRESS'
 
     return t
 
@@ -322,7 +325,8 @@ def p_type(p: yacc.YaccProduction):
             | UINTN
             | INTN
             | VOID
-            | STRING"""
+            | STRING
+            | ADDRESS"""
     p[0] = p[1]
 
 
@@ -421,6 +425,7 @@ def p_binary_operation(p):
         '==': lambda a, b: a == b,
         '&&': lambda a, b: And(a, b),
         '||': lambda a, b: Or(a, b),
+        '!=': lambda a, b: a != b,
     })
     operation = funcs.get(p[7])
 
@@ -469,6 +474,8 @@ def p_mapping_assignment(p):
         p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
         if p[7][0] == "const":
             _p7 = p[7][1]
+        elif p[7][0] == "symbol" and p[7][1] in ["True", "False"]:
+            _p7 = p[7][1] == "True"
         else:
             _p7 = symbol_table_manager.get_z3_variable(p[7][1], plus_plus=True)
         p[0] = p[0] == _p7
@@ -554,6 +561,15 @@ def p_solidity_call(p):
         "require": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True),
         "assert": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True)
     }.get(p[7])(params=p[12], declaration=p[9])
+
+
+def p_convert(p):
+    """expression : ID EQUAL CONVERT NUMBER TO type"""
+    #      0        1    2      3      4     5   6
+    if p[6] == 'ADDRESS':
+        p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True) == p[4]
+    else:
+        raise  # TODO: Others
 
 
 IR_PARSER = yacc.yacc(start="expression")  # TODO Add more yacc patterns

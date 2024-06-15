@@ -235,6 +235,8 @@ class WalkTree:
                             utils.log(f'Exception on variable gathering: {e} for expr: {expr}', level='error')
                     else:
                         pass  # TODO REF_i -> REF_j.member
+                elif convert_matched := re.match(r"^(?P<variable_name>\w+) = CONVERT \d+ to address$", expr):
+                    variables[convert_matched.group("variable_name")] = 'address'
 
         # There is bug in SlitherIR that for `rvalue = ! lvalue` and `rvalue = ~ lvalue` no type is applied
         # TODO: Add issue to Slither and fix this. After that, we should remove the following loop
