@@ -332,8 +332,7 @@ def p_type(p: yacc.YaccProduction):
 
 def p_return_stmt(p):
     """expression : RETURN
-                  | RETURN ID
-                  | RETURN NUMBER"""
+                  | RETURN bin_op_rvalue"""
     p[0] = BoolVal(True)  # no constraint for return statements
 
 
@@ -344,19 +343,18 @@ def p_constant(p):
 
 
 def p_assignment(p):
-    """expression : ID LPAREN type RPAREN ASSIGNMENT constant LPAREN type RPAREN
-                  | ID LPAREN type RPAREN ASSIGNMENT ID LPAREN type RPAREN"""
-    #       0        1    2    3     4        5       6       7     8     9
-    if p[3] != p[8] and type(p[6]) != int:
+    """expression : ID LPAREN type RPAREN ASSIGNMENT bin_op_rvalue LPAREN type RPAREN"""
+    #       0        1    2    3     4        5       6               7     8     9
+    if p[3] != p[8] and type(p[6][1]) != int:
         raise SlitherIRSyntaxError(p)
 
-    if isinstance(p[6], str):  # It's a variable/reference
+    if p[6][0] != 'const':  # It's a variable/reference
         p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
-        _p6 = symbol_table_manager.get_z3_variable(p[6], plus_plus=True)
+        _p6 = symbol_table_manager.get_z3_variable(p[6][1], plus_plus=True)
         p[0] = p[0] == _p6
     else:
         p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
-        p[0] = p[0] == p[6]
+        p[0] = p[0] == p[6][1]
 
 
 def p_binary_operator(p):

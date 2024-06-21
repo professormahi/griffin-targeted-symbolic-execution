@@ -206,6 +206,148 @@ class SolFile:
                 return indx + 1, line
         return -1, None
 
+    @staticmethod
+    def __process_irs(node):
+        return [str(ir) for ir in node.irs]
+
+    def __cfg_add_nodes(self, func, node, cfg_x, node_name_prefix=''):
+        expr = {
+            'sol': [str(node.expression or ''), ],
+            'irs': self.__process_irs(node=node),
+            'irs_ssa': [str(ir) for ir in node.irs_ssa],
+            'node_type': node.type.name,
+            'state_variables_read': [str(var) for var in node.state_variables_read],
+            'state_variables_written': [str(var) for var in node.state_variables_written],
+            'func_state_variables_read': [str(var) for var in func.state_variables_read],
+            'func_state_variables_written': [str(var) for var in func.state_variables_written],
+        }
+        if node.type.name == "ENTRYPOINT":
+            expr["params"] = [param.name for param in func.variables if param.name]
+            expr["irs"] = [f"INITIALIZE_FUNC_PARAMS {param_name}" for param_name in expr["params"]]
+
+        # Checks if this node is the target of Targeted Backward Symbolic Execution
+        if args.target is not None:
+            is_target = \
+                node.expression is not None \
+                and args.target in node.source_mapping['lines']
+        else:  # Read @target annotation if no --target is specified
+            lineno, _ = self.insource_target_annotation
+            is_target = \
+                lineno != -1 \
+                and node.expression is not None \
+                and lineno in node.source_mapping['lines']
+        is_target = is_target or False  # Set False if this is None
+
+        cfg_x.add_node(
+            f"{node_name_prefix}{func.name}_{node.node_id}",
+            label=f"{func.name}_{node.node_id}{'*' if is_target else ''}|node_type = {node.type}\n\nEXPRESSION:"
+                  f" {escape_expression(END_LINE.join(expr[args.cfg_expr_type]))}",
+            shape="record",
+            lines=node.source_mapping['lines'],
+            is_target=is_target,
+            **expr,
+        )
+
+        if is_target is True:
+            self.target = f"{func.name}_{node.node_id}"  # TODO: is it possible to have multiple targets?
+            utils.log(f"target node is {self.target}")
+
+        if self.cfg_strategy == 'compound':
+            if func.name == 'slitherConstructorVariables' or func.name.startswith("constructor"):
+                if node.node_id == 0:
+                    cfg_x.add_edge(
+                        u_for_edge='START_NODE',
+                        v_for_edge=f'{func.name}_0',
+                    )
+                elif node.node_id == len(func.nodes) - 1:
+                    cfg_x.add_edge(
+                        u_for_edge=f'{func.name}_{node.node_id}',
+                        v_for_edge='AFTER_CREATION'
+                    )
+            elif node.type.name == 'ENTRYPOINT':
+                cfg_x.add_edge(
+                    u_for_edge='AFTER_CREATION',
+                    v_for_edge=f'{func.name}_{node.node_id}',
+                )
+
+    def __cfg_add_func_edges(self, func, cfg_x, node_name_prefix=''):
+        for node in func.nodes:
+            if node.type in [SlitherNodeType.IF, SlitherNodeType.IFLOOP]:
+                if node.son_true:
+                    cfg_x.add_edge(
+                        u_for_edge=f"{node_name_prefix}{func.name}_{node.node_id}",
+                        v_for_edge=f"{node_name_prefix}{func.name}_{node.son_true.node_id}",
+                        label="True"
+                    )
+                if node.son_false:
+                    cfg_x.add_edge(
+                        u_for_edge=f"{node_name_prefix}{func.name}_{node.node_id}",
+                        v_for_edge=f"{node_name_prefix}{func.name}_{node.son_false.node_id}",
+                        label="False"
+                    )
+            else:
+                if node.sons:
+                    for son in node.sons:
+                        cfg_x.add_edge(
+                            u_for_edge=f"{node_name_prefix}{func.name}_{node.node_id}",
+                            v_for_edge=f"{node_name_prefix}{func.name}_{son.node_id}",
+                        )
+                elif self.cfg_strategy == 'compound' and func.visibility not in ['private', ]:
+                    cfg_x.add_edge(
+                        u_for_edge=f"{node_name_prefix}{func.name}_{node.node_id}",
+                        v_for_edge="AFTER_TX",
+                    )
+
+    def __cfg_process_internal_calls(self, cfg_x):
+        for node, irs in nx.get_node_attributes(cfg_x, 'irs').items():
+            try:
+                matched = next((indx, ir) for indx, ir in enumerate(irs) if 'INTERNAL_CALL,' in ir)
+            except StopIteration:
+                matched = None
+
+            if matched is not None:
+                indx, ir = matched
+                prev_irs, next_irs = irs[:indx], irs[indx + 1:]
+
+                lvalue, rvalue = ir.split(' = ')
+                func_name = re.match(r'^INTERNAL_CALL,\s([\w.]+)\(', rvalue).groups()[0]
+                slither_func = next(
+                    item for item in self.slither.contracts[-1].functions if
+                    item.canonical_name.startswith(func_name))
+
+                # Set parameters
+                passed_params_str = rvalue.split(')(')[-1][:-1]
+                passed_params = passed_params_str.split(',') if passed_params_str else []
+                for passed_param, func_param in zip(passed_params, slither_func.parameters):
+                    prev_irs.append(f'{func_param}({func_param.type}) := {passed_param}({func_param.type})')
+
+                # Add nodes and edges for private function
+                cfg_x.add_node(f"{node}_before_call", label=f"{node}_before_call", irs=prev_irs)
+                prev_node, _ = list(cfg_x.in_edges(node))[0]  # TODO: if more than one in-edge
+                edge_data = cfg_x.get_edge_data(prev_node, node).copy()
+                cfg_x.remove_edge(prev_node, node)
+                if edge_data[0]:
+                    cfg_x.add_edge(prev_node, f"{node}_before_call", **edge_data[0])
+                else:
+                    cfg_x.add_edge(prev_node, f"{node}_before_call")
+                for n in slither_func.nodes:
+                    self.__cfg_add_nodes(slither_func, n, cfg_x, node_name_prefix=f'{node}_')
+
+                    if n.type.name == 'ENTRYPOINT':
+                        cfg_x.add_edge(f"{node}_before_call", f"{node}_{slither_func.name}_{n.node_id}")
+                    elif n.type.name == 'RETURN':
+                        cfg_x.add_edge(f"{node}_{slither_func.name}_{n.node_id}", node)
+
+                        if str(n.expression).split().__len__() == 1:
+                            return_ir = f"{lvalue} := {n.expression}({lvalue.split('(')[1]}"
+                        else:
+                            return_ir = f"{lvalue} = {n.expression}"
+                        next_irs.insert(0, return_ir)
+
+                self.__cfg_add_func_edges(slither_func, cfg_x, node_name_prefix=f'{node}_')
+
+                cfg_x.nodes[node]['irs'] = next_irs
+
     @cached_property
     def cfg(self) -> nx.MultiDiGraph:
         cfg_x = nx.MultiDiGraph()
@@ -223,94 +365,15 @@ class SolFile:
 
         utils.log(f"Contract Name: {self.slither.contracts[-1].name}")
         for func in self.slither.contracts[-1].functions:  # TODO Support more contracts
+            if func.visibility in ['private', ]:
+                continue
+
             # Traverse all nodes and add to networkx version
             for node in func.nodes:
-                expr = {
-                    'sol': [str(node.expression or ''), ],
-                    'irs': [str(ir) for ir in node.irs],
-                    'irs_ssa': [str(ir) for ir in node.irs_ssa],
-                    'node_type': node.type.name,
-                    'state_variables_read': [str(var) for var in node.state_variables_read],
-                    'state_variables_written': [str(var) for var in node.state_variables_written],
-                    'func_state_variables_read': [str(var) for var in func.state_variables_read],
-                    'func_state_variables_written': [str(var) for var in func.state_variables_written],
-                }
-                if node.type.name == "ENTRYPOINT":
-                    expr["params"] = [param.name for param in func.variables if param.name]
-                    expr["irs"] = [f"INITIALIZE_FUNC_PARAMS {param_name}" for param_name in expr["params"]]
-
-                # Checks if this node is the target of Targeted Backward Symbolic Execution
-                if args.target is not None:
-                    is_target = \
-                        node.expression is not None \
-                        and args.target in node.source_mapping['lines']
-                else:  # Read @target annotation if no --target is specified
-                    lineno, _ = self.insource_target_annotation
-                    is_target = \
-                        lineno != -1 \
-                        and node.expression is not None \
-                        and lineno in node.source_mapping['lines']
-                is_target = is_target or False  # Set False if this is None
-
-                cfg_x.add_node(
-                    f"{func.name}_{node.node_id}",
-                    label=f"{func.name}_{node.node_id}{'*' if is_target else ''}|node_type = {node.type}\n\nEXPRESSION:"
-                          f" {escape_expression(END_LINE.join(expr[args.cfg_expr_type]))}",
-                    shape="record",
-                    lines=node.source_mapping['lines'],
-                    is_target=is_target,
-                    **expr,
-                )
-
-                if is_target is True:
-                    self.target = f"{func.name}_{node.node_id}"  # TODO: is it possible to have multiple targets?
-                    utils.log(f"target node is {self.target}")
-
-                if self.cfg_strategy == 'compound':
-                    if func.name == 'slitherConstructorVariables' or func.name.startswith("constructor"):
-                        if node.node_id == 0:
-                            cfg_x.add_edge(
-                                u_for_edge='START_NODE',
-                                v_for_edge=f'{func.name}_0',
-                            )
-                        elif node.node_id == len(func.nodes) - 1:
-                            cfg_x.add_edge(
-                                u_for_edge=f'{func.name}_{node.node_id}',
-                                v_for_edge='AFTER_CREATION'
-                            )
-                    elif node.type.name == 'ENTRYPOINT':
-                        cfg_x.add_edge(
-                            u_for_edge='AFTER_CREATION',
-                            v_for_edge=f'{func.name}_{node.node_id}',
-                        )
+                self.__cfg_add_nodes(func=func, node=node, cfg_x=cfg_x)
 
             # Add edges
-            for node in func.nodes:
-                if node.type in [SlitherNodeType.IF, SlitherNodeType.IFLOOP]:
-                    if node.son_true:
-                        cfg_x.add_edge(
-                            u_for_edge=f"{func.name}_{node.node_id}",
-                            v_for_edge=f"{func.name}_{node.son_true.node_id}",
-                            label="True"
-                        )
-                    if node.son_false:
-                        cfg_x.add_edge(
-                            u_for_edge=f"{func.name}_{node.node_id}",
-                            v_for_edge=f"{func.name}_{node.son_false.node_id}",
-                            label="False"
-                        )
-                else:
-                    if node.sons:
-                        for son in node.sons:
-                            cfg_x.add_edge(
-                                u_for_edge=f"{func.name}_{node.node_id}",
-                                v_for_edge=f"{func.name}_{son.node_id}",
-                            )
-                    elif self.cfg_strategy == 'compound':
-                        cfg_x.add_edge(
-                            u_for_edge=f"{func.name}_{node.node_id}",
-                            v_for_edge="AFTER_TX",
-                        )
+            self.__cfg_add_func_edges(func=func, cfg_x=cfg_x)
 
         # noinspection PyArgumentList
         if not cfg_x.out_edges("START_NODE"):
@@ -318,6 +381,8 @@ class SolFile:
                 u_for_edge='START_NODE',
                 v_for_edge='AFTER_CREATION'
             )
+
+        self.__cfg_process_internal_calls(cfg_x)
 
         utils.log(f"#NUM_OF_CFG_NODES: {cfg_x.nodes.__len__()}", level='debug')
         return cfg_x
