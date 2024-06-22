@@ -214,7 +214,6 @@ class SolFile:
         expr = {
             'sol': [str(node.expression or ''), ],
             'irs': self.__process_irs(node=node),
-            'irs_ssa': [str(ir) for ir in node.irs_ssa],
             'node_type': node.type.name,
             'state_variables_read': [str(var) for var in node.state_variables_read],
             'state_variables_written': [str(var) for var in node.state_variables_written],
@@ -260,12 +259,12 @@ class SolFile:
                         u_for_edge='START_NODE',
                         v_for_edge=f'{func.name}_0',
                     )
-                elif node.node_id == len(func.nodes) - 1:
+                elif node.node_id == len(func.nodes) - 1 and node_name_prefix == '':
                     cfg_x.add_edge(
                         u_for_edge=f'{func.name}_{node.node_id}',
                         v_for_edge='AFTER_CREATION'
                     )
-            elif node.type.name == 'ENTRYPOINT':
+            elif node.type.name == 'ENTRYPOINT' and node_name_prefix == '':
                 cfg_x.add_edge(
                     u_for_edge='AFTER_CREATION',
                     v_for_edge=f'{func.name}_{node.node_id}',
@@ -293,7 +292,7 @@ class SolFile:
                             u_for_edge=f"{node_name_prefix}{func.name}_{node.node_id}",
                             v_for_edge=f"{node_name_prefix}{func.name}_{son.node_id}",
                         )
-                elif self.cfg_strategy == 'compound' and func.visibility not in ['private', ]:
+                elif self.cfg_strategy == 'compound' and node_name_prefix == '':
                     cfg_x.add_edge(
                         u_for_edge=f"{node_name_prefix}{func.name}_{node.node_id}",
                         v_for_edge="AFTER_TX",
@@ -368,7 +367,8 @@ class SolFile:
                     lvalue, rvalue = ir.split(' = ')
                 else:
                     lvalue, rvalue = None, ir
-                _, library_name, func_name = re.match(r'^LIBRARY_CALL,\s([\w.:]+),\sfunction:(\w+).(\w+)\(', rvalue).groups()
+                _, library_name, func_name = re.match(r'^LIBRARY_CALL,\s([\w.:]+),\sfunction:(\w+).(\w+)\(',
+                                                      rvalue).groups()
                 slither_library = next(item for item in self.slither.contracts if item.name == library_name)
                 slither_func = next(
                     item for item in slither_library.functions if item.name == func_name)
@@ -407,9 +407,6 @@ class SolFile:
 
                 cfg_x.nodes[node]['irs'] = next_irs
 
-
-
-
     @cached_property
     def cfg(self) -> nx.MultiDiGraph:
         cfg_x = nx.MultiDiGraph()
@@ -427,7 +424,8 @@ class SolFile:
 
         utils.log(f"Contract Name: {self.slither.contracts[-1].name}")
         for func in self.slither.contracts[-1].functions:  # TODO Support more contracts
-            if func.visibility in ['private', ]:
+            if func.visibility in ['private', 'internal'] and not (
+                    func.name == 'slitherConstructorVariables' or func.name.startswith("constructor")):
                 continue
 
             # Traverse all nodes and add to networkx version

@@ -9,7 +9,7 @@ import ply.yacc as yacc
 from manticore.ethereum.abitypes import lexer as type_lexer
 from manticore.exceptions import EthereumError
 from z3 import BitVecVal, BoolVal, Bool, And, Or, Not, Function, IntSort, BoolSort, Int, ForAll, \
-    Implies, BitVec, ULT, UGT, ULE, UGE, UDiv, URem, BitVecSort
+    Implies, BitVec, ULT, UGT, ULE, UGE, UDiv, URem, BitVecSort, String
 
 logger = logging.getLogger('SlitherIRPLY')
 
@@ -199,6 +199,8 @@ class SymbolTableManager:
             return partial(BitVec, bv=int(variable_type.replace("int", "")))
         elif variable_type.startswith("bv"):
             return partial(BitVec, bv=int(variable_type.replace("bv", "")))
+        elif variable_type == 'string':
+            return String
         elif variable_type.startswith("REF"):
             raise NotImplementedError
         else:
