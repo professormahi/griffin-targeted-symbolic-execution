@@ -223,7 +223,8 @@ class SolFile:
         }
         if node.type.name == "ENTRYPOINT":
             expr["params"] = [param.name for param in func.variables if param.name]
-            expr["irs"] = [f"INITIALIZE_FUNC_PARAMS {param_name}" for param_name in expr["params"]]
+            if node_name_prefix == '':  # TODO: Maybe better implementation on not initializing library_calls
+                expr["irs"] = [f"INITIALIZE_FUNC_PARAMS {param_name}" for param_name in expr["params"]]
 
         # Checks if this node is the target of Targeted Backward Symbolic Execution
         if args.target is not None:
@@ -309,7 +310,10 @@ class SolFile:
                 indx, ir = matched
                 prev_irs, next_irs = irs[:indx], irs[indx + 1:]
 
-                lvalue, rvalue = ir.split(' = ')
+                if '=' in ir:
+                    lvalue, rvalue = ir.split(' = ')
+                else:
+                    lvalue, rvalue = None, ir
                 func_name = re.match(r'^INTERNAL_CALL,\s([\w.]+)\(', rvalue).groups()[0]
                 slither_func = next(
                     item for item in self.slither.contracts[-1].functions if
@@ -338,15 +342,73 @@ class SolFile:
                     elif n.type.name == 'RETURN':
                         cfg_x.add_edge(f"{node}_{slither_func.name}_{n.node_id}", node)
 
-                        if str(n.expression).split().__len__() == 1:
-                            return_ir = f"{lvalue} := {n.expression}({lvalue.split('(')[1]}"
-                        else:
-                            return_ir = f"{lvalue} = {n.expression}"
-                        next_irs.insert(0, return_ir)
+                        if lvalue is not None:
+                            if str(n.expression).split().__len__() == 1:
+                                return_ir = f"{lvalue} := {n.expression}({lvalue.split('(')[1]}"
+                            else:
+                                return_ir = f"{lvalue} = {n.expression}"
+                            next_irs.insert(0, return_ir)
 
                 self.__cfg_add_func_edges(slither_func, cfg_x, node_name_prefix=f'{node}_')
 
                 cfg_x.nodes[node]['irs'] = next_irs
+
+    def __cfg_process_library_calls(self, cfg_x):
+        for node, irs in nx.get_node_attributes(cfg_x, 'irs').items():
+            try:
+                matched = next((indx, ir) for indx, ir in enumerate(irs) if 'LIBRARY_CALL,' in ir)
+            except StopIteration:
+                matched = None
+
+            if matched is not None:
+                indx, ir = matched
+                prev_irs, next_irs = irs[:indx], irs[indx + 1:]
+
+                if '=' in ir:
+                    lvalue, rvalue = ir.split(' = ')
+                else:
+                    lvalue, rvalue = None, ir
+                _, library_name, func_name = re.match(r'^LIBRARY_CALL,\s([\w.:]+),\sfunction:(\w+).(\w+)\(', rvalue).groups()
+                slither_library = next(item for item in self.slither.contracts if item.name == library_name)
+                slither_func = next(
+                    item for item in slither_library.functions if item.name == func_name)
+
+                # Set parameters
+                passed_params_str = rvalue.split('arguments:[')[1].strip()[:-1].replace('\'', '')
+                passed_params = passed_params_str.split(',') if passed_params_str else []
+                for passed_param, func_param in zip(passed_params, slither_func.parameters):
+                    prev_irs.append(f'{func_param}({func_param.type}) := {passed_param}({func_param.type})')
+
+                # Add nodes and edges for private function
+                cfg_x.add_node(f"{node}_before_call", label=f"{node}_before_call", irs=prev_irs)
+                prev_node, _ = list(cfg_x.in_edges(node))[0]  # TODO: if more than one in-edge
+                edge_data = cfg_x.get_edge_data(prev_node, node).copy()
+                cfg_x.remove_edge(prev_node, node)
+                if edge_data[0]:
+                    cfg_x.add_edge(prev_node, f"{node}_before_call", **edge_data[0])
+                else:
+                    cfg_x.add_edge(prev_node, f"{node}_before_call")
+                for n in slither_func.nodes:
+                    self.__cfg_add_nodes(slither_func, n, cfg_x, node_name_prefix=f'{node}_')
+
+                    if n.type.name == 'ENTRYPOINT':
+                        cfg_x.add_edge(f"{node}_before_call", f"{node}_{slither_func.name}_{n.node_id}")
+                    elif n.type.name == 'RETURN':
+                        cfg_x.add_edge(f"{node}_{slither_func.name}_{n.node_id}", node)
+
+                        if lvalue is not None:
+                            if str(n.expression).split().__len__() == 1:
+                                return_ir = f"{lvalue} := {n.expression}({lvalue.split('(')[1]}"
+                            else:
+                                return_ir = f"{lvalue} = {n.expression}"
+                            next_irs.insert(0, return_ir)
+
+                self.__cfg_add_func_edges(slither_func, cfg_x, node_name_prefix=f'{node}_')
+
+                cfg_x.nodes[node]['irs'] = next_irs
+
+
+
 
     @cached_property
     def cfg(self) -> nx.MultiDiGraph:
@@ -383,6 +445,7 @@ class SolFile:
             )
 
         self.__cfg_process_internal_calls(cfg_x)
+        self.__cfg_process_library_calls(cfg_x)
 
         utils.log(f"#NUM_OF_CFG_NODES: {cfg_x.nodes.__len__()}", level='debug')
         return cfg_x
