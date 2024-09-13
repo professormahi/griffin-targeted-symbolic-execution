@@ -565,10 +565,15 @@ def p_solidity_call(p):
 
 
 def p_convert(p):
-    """expression : ID EQUAL CONVERT NUMBER TO type"""
+    """expression : ID EQUAL CONVERT bin_op_rvalue TO type"""
     #      0        1    2      3      4     5   6
     if p[6] == 'ADDRESS':
-        p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True) == p[4]
+        p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
+        if p[4][0] != 'const':
+            _p4 = symbol_table_manager.get_z3_variable(p[4][1], plus_plus=True)
+            p[0] = p[0] == _p4
+        else:
+            p[0] = p[0] == p[4][1]
     else:
         raise  # TODO: Others
 
