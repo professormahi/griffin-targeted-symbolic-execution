@@ -33,7 +33,7 @@ parser.add_argument('--cfg-expr-type', dest='cfg_expr_type', default='sol', choi
                          "'irs' for IR expressions, and 'irs_ssa' for SSA IRs.")
 
 # Heuristics
-parser.add_argument('--heuristic', dest='heuristic', default='floyd_warshall',
+parser.add_argument('--heuristic', dest='heuristic',
                     help="The heuristic to traverse CFG and find test data.")
 
 # Exporters

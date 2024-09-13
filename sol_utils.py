@@ -206,6 +206,18 @@ class SolFile:
                 return indx + 1, line
         return -1, None
 
+    @cached_property
+    def insource_heuristic_annotation(self):
+        """
+        Find the heuristic based on the @heuristic annotation
+        :return: (lineno, the heuristic) Tuple
+        """
+        for indx, line in enumerate(self.source.split('\n')):
+            if "@heuristic" in line:
+                assert len(line.strip().split()) == 3  # // @heuristic <val>
+                return indx + 1, line.strip().split()[-1]
+        return -1, None
+
     @staticmethod
     def __process_irs(node):
         return [str(ir) for ir in node.irs]

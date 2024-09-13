@@ -375,6 +375,8 @@ def p_binary_operation_rvalue(p):
         p[0] = ('builtin', ''.join(p[1:]))  # TODO better implementation for custom classes
     elif isinstance(p[1], int):  # TODO Other constant types
         p[0] = ('const', p[1])
+    elif p[1] in ["True", "False"]:
+        p[0] = ('const', BoolVal(True) if p[1] == "True" else BoolVal(False))
     elif p[1].startswith("REF_"):
         p[0] = ('reference', p[1])
     else:

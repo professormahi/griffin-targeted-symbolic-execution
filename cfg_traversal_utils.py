@@ -182,9 +182,16 @@ class WalkTree:
     @cached_property
     def __heuristic(self) -> Callable:
         from arg_parser import args
-        utils.log(f"Heuristic {args.heuristic}", level='debug')
+        utils.log(f"Heuristic {args.heuristic} by args", level='debug')
 
-        return Heuristic.get_instance(self.reversed_cfg, name=args.heuristic).fitness
+        heuristic = "floyd_warshall"
+        if args.heuristic is not None:
+            heuristic = args.heuristic
+        elif self.contract.insource_heuristic_annotation != (-1, None):
+            heuristic = self.contract.insource_heuristic_annotation[1]
+
+        utils.log(f"Heuristic {heuristic} is selected", level='debug')
+        return Heuristic.get_instance(self.reversed_cfg, name=heuristic).fitness
 
     def __get_node_on_rev_cfg(self, walk_node_id) -> str:
         return self.__walk_tree.nodes[walk_node_id]['name_on_rev_cfg']
@@ -230,8 +237,9 @@ class WalkTree:
                         referee_name = rvalue_matched.group('referee_name')
                         indx = rvalue_matched.group('index')
                         try:
-                            variables[matched.group("variable_name")] = f'REF[{variables[referee_name]}, {referee_name}, ' \
-                                                                    f'{indx}]'
+                            variables[
+                                matched.group("variable_name")] = f'REF[{variables[referee_name]}, {referee_name}, ' \
+                                                                  f'{indx}]'
                         except KeyError as e:
                             utils.log(f'Exception on variable gathering: {e} for expr: {expr}', level='error')
                     else:
