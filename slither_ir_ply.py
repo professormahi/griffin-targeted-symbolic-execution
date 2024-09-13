@@ -559,7 +559,8 @@ def p_solidity_call(p):
     #      0        1     2    3     4      5         6       7    8       9        10     11        12       13
     p[0] = {
         "require": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True),
-        "assert": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True)
+        "assert": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True),
+        "revert": lambda params, declaration: BoolVal(True),
     }.get(p[7])(params=p[12], declaration=p[9])
 
 

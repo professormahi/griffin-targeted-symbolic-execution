@@ -219,6 +219,7 @@ class WalkTree:
         compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\((?P<variable_type>(\w+)|(mapping\(.*\)))\)\s(=|:=|->)")
         for node in self.contract.cfg.nodes:
             for expr in self.contract.cfg.nodes[node].get("irs", []):
+                # noinspection RegExpRedundantEscape
                 if matched := compiled_pattern.match(expr):
                     if matched.group("variable_name").startswith("REF_") is False:
                         variables[matched.group("variable_name")] = matched.group("variable_type")
@@ -235,7 +236,7 @@ class WalkTree:
                             utils.log(f'Exception on variable gathering: {e} for expr: {expr}', level='error')
                     else:
                         pass  # TODO REF_i -> REF_j.member
-                elif convert_matched := re.match(r"^(?P<variable_name>\w+) = CONVERT \d+ to address$", expr):
+                elif convert_matched := re.match(r"^(?P<variable_name>\w+) = CONVERT (\d+|[\w\.]+) to address$", expr):
                     variables[convert_matched.group("variable_name")] = 'address'
 
         # There is bug in SlitherIR that for `rvalue = ! lvalue` and `rvalue = ~ lvalue` no type is applied
