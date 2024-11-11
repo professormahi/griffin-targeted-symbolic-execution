@@ -52,10 +52,10 @@ class SolcSelectHelper:
 
     @staticmethod
     def select(version: str, install: bool = False) -> bool:
-        if version not in SolcSelectHelper.available_versions:
-            return False
         if version not in SolcSelectHelper.versions:
             if install is False:
+                return False
+            elif version not in SolcSelectHelper.available_versions:
                 return False
             else:
                 if SolcSelectHelper.install(version) is False:
