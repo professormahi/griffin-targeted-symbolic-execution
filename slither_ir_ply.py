@@ -226,6 +226,14 @@ class SymbolTableManager:
                 ),
                 matched.group("index")
             )
+        elif 'address[]' in variable_type:  # TODO: Generalize to any array
+            matched = re.match('REF\[address\[],\s(?P<array>\w+),\s(?P<index>[\w.]+)]', variable_type)
+            return Function(
+                matched.group('array'),
+                cls.__z3_sorts('uint256'),  # Index
+                IntSort(),  # CAUTION: For the SSA
+                cls.__z3_sorts('address'),
+            ), matched.group('index')
         else:
             pass  # TODO: e.g. we do not support 2d mapping now
 
