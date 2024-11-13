@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 // Reference: https://docs.soliditylang.org/en/latest/solidity-by-example.html
-// @result [{'function': 'constructor', 'params': {'msg.sender': 194866884977453722427157977695504402620791005730, 'msg.value': 1}}]
+// @result [{'function': 'constructor', 'params': {'msg.sender': 97433442488726861213578988847752201310395502865, 'msg.value': 1}}]
 pragma solidity ^0.8.0;
 contract Purchase {
     uint public value;

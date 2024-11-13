@@ -1,6 +1,6 @@
 // Reference: https://solidity-by-example.org/app/erc20/
 // SPDX-License-Identifier: UNLICENSED
-// @result [{'function': 'constructor', 'params': {'_name': "", '_symbol': "", '_decimals': 0, 'msg.sender': 194866884977453722427157977695504402620791005730, 'msg.value': 0}}, {'function': 'transfer', 'params': {'recipient': 0, 'amount': 10862614657460547657084964505258553073699769787594428024184861764617550954497, 'msg_sender': 0, 'msg.sender': 389733769954907444854315955391008805241582011460, 'msg.value': 0}}]
+// @result [{'function': 'constructor', 'params': {'_name': "", '_symbol': "", '_decimals': 0, 'msg.sender': 389733769954907444854315955391008805241582011460, 'msg.value': 0}}, {'function': 'transfer', 'params': {'recipient': 0, 'amount': 1496577676904776325393525626176700376982407074170946, 'msg_sender': 0, 'msg.sender': 389733769954907444854315955391008805241582011460, 'msg.value': 0}}]
 pragma solidity ^0.8.0;
 
 abstract contract Context {

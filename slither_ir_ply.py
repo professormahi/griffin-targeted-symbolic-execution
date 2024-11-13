@@ -26,6 +26,8 @@ reserved = {
     'TRANSACTION_STARTS': 'TRANSACTION_STARTS',
 
     'NOT': 'NOT',
+
+    'this': 'THIS',
 }
 
 # Lex Tokens
@@ -302,6 +304,14 @@ class SymbolTableManager:
     def symbols(self):
         return self.__symbols
 
+    @cached_property
+    def balances_storage(self):
+        return Function(
+            '__balances',
+            self.__z3_sorts('address'),
+            self.__z3_sorts('uint256'),
+        )
+
 
 symbol_table_manager = SymbolTableManager.get_instance()
 
@@ -378,7 +388,8 @@ def p_binary_operator(p):
 def p_binary_operation_rvalue(p):
     """bin_op_rvalue : ID
                      | ID DOT ID
-                     | constant"""
+                     | constant
+                     | THIS"""
     if len(p) == 4:
         p[0] = ('builtin', ''.join(p[1:]))  # TODO better implementation for custom classes
     elif isinstance(p[1], int):  # TODO Other constant types
@@ -387,6 +398,8 @@ def p_binary_operation_rvalue(p):
         p[0] = ('const', BoolVal(True) if p[1] == "True" else BoolVal(False))
     elif p[1].startswith("REF_"):
         p[0] = ('reference', p[1])
+    elif p[1] == 'this':
+        p[0] = ('builtin', 'this')
     else:
         p[0] = ('symbol', p[1])
 
@@ -509,6 +522,21 @@ def init_msg(p):
     p[0] = And(p[0], symbol_table_manager.get_z3_variable('msg.value', plus_plus=True, save=True) >= 0)
 
 
+def init_balances(p):
+    __temp_balance_addr = BitVec('__temp_balance_addr', bv=256)
+
+    p[0] = And(
+        p[0],
+        ForAll(
+            [__temp_balance_addr],
+            Implies(
+                BoolVal(True),
+                symbol_table_manager.balances_storage(__temp_balance_addr) == BitVecVal(0, bv=256),
+            )
+        ),
+    )
+
+
 def p_initialize_globals(p):
     """expression : INITIALIZE_GLOBS"""
     p[0] = BoolVal(True)
@@ -516,6 +544,7 @@ def p_initialize_globals(p):
         p[0] = And(p[0], symbol_table_manager.get_z3_variable(reference_name, plus_plus=True, save=False) == 0)
 
     init_msg(p)
+    init_balances(p)
 
 
 def p_transaction_starts(p):
@@ -568,10 +597,15 @@ def p_solidity_call(p):
     """expression : ID LPAREN type RPAREN EQUAL SOLIDITY_CALL ID LPAREN type_list RPAREN LPAREN rvalue_list RPAREN"""
     #      0        1     2    3     4      5         6       7    8       9        10     11        12       13
     p[0] = {
-        "require": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True),
-        "assert": lambda params, declaration: _rvalue_processor(params[0]) == BoolVal(True),
-        "revert": lambda params, declaration: BoolVal(True),
-    }.get(p[7])(params=p[12], declaration=p[9])
+        "require": lambda params, declaration, lvalue: _rvalue_processor(params[0]) == BoolVal(True),
+        "assert": lambda params, declaration, lvalue: _rvalue_processor(params[0]) == BoolVal(True),
+        "revert": lambda params, declaration, lvalue: BoolVal(True),
+        "balance": lambda params, declaration, lvalue: symbol_table_manager.get_z3_variable(
+            lvalue, plus_plus=True, save=True,
+        ) == symbol_table_manager.balances_storage(
+            _rvalue_processor(params[0])
+        ),
+    }.get(p[7])(params=p[12], declaration=p[9], lvalue=p[1])
 
 
 def p_convert(p):
@@ -579,7 +613,9 @@ def p_convert(p):
     #      0        1    2      3      4     5   6
     if p[6] == 'ADDRESS':
         p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
-        if p[4][0] != 'const':
+        if p[4] == ('builtin', 'this'):
+            p[0] = p[0] == BitVecVal(0xffffffffffffffffffffffffffffffffffffffff, bv=256)
+        elif p[4][0] != 'const':
             _p4 = symbol_table_manager.get_z3_variable(p[4][1], plus_plus=True)
             p[0] = p[0] == _p4
         else:

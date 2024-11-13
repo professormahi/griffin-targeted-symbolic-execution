@@ -16,7 +16,7 @@ source .env/bin/activate || exit 1
 rm output/* -rf || exit 1
 
 # Start testing
-contracts=$(find sample-smart-contracts/ -iname "*.sol" -type f)
+contracts=$(find sample-smart-contracts/ -iname "*.sol" -type f | sort)
 for i in $(seq 1 $NUM_RUNS); do
   for item in $contracts; do
     expected_result=$(grep "@result" "$item" | cut -d" " -f3-)

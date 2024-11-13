@@ -1,5 +1,5 @@
 // Reference: https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/utils/math/Math.sol
-// @result [{'function': 'log10', 'params': {'value': 18202830010577913246766197024580322132324927419791585699801595904, 'result': 'any', 'msg.sender': 97433442488726861213578988847752201310395502865, 'msg.value': 0}}]
+// @result [{'function': 'log10', 'params': {'value': 13164087656369971425368478026478388781562443983090358895392063488, 'result': 'any', 'msg.sender': 97433442488726861213578988847752201310395502865, 'msg.value': 0}}]
 
 pragma solidity ^0.8.0;
 
