@@ -242,8 +242,18 @@ class WalkTree:
                                                                   f'{indx}]'
                         except KeyError as e:
                             utils.log(f'Exception on variable gathering: {e} for expr: {expr}', level='error')
+                    elif matched := re.match(
+                            "(?P<reference_name>REF_\w+)\((?P<type>\w+)\)\s->\s(?P<base_reference>\w+)\.(?P<member>\w+)",
+                            expr
+                    ):  # REF_i -> REF_j.member
+                        if not matched.group('base_reference').startswith('REF'):
+                            variables[matched.group('reference_name')] = (f"REF_STRUCT[{matched.group('type')}, "
+                                                                          f"{matched.group('base_reference')}."
+                                                                          f"{matched.group('member')}]")
+                        else:
+                            pass
                     else:
-                        pass  # TODO REF_i -> REF_j.member
+                        pass  # TODO ??
                 elif convert_matched := re.match(r"^(?P<variable_name>\w+) = CONVERT (\d+|[\w\.]+) to address$", expr):
                     variables[convert_matched.group("variable_name")] = 'address'
 

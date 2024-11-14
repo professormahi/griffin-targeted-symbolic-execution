@@ -241,20 +241,30 @@ class SymbolTableManager:
 
     def get_z3_variable(self, symbol_name, plus_plus=False, save=False):
         if symbol_name.startswith("REF_"):  # References
-            func, indx = self.get_z3_references(self.__types[symbol_name])
-            index_of_reference = self.get_variable(
-                func.name(), plus_plus=plus_plus, save=save
-            ).removeprefix(func.name()).replace("_", "")
-            if indx.isnumeric() is True:
-                return func(indx, index_of_reference)
-            else:
-                return func(self.get_z3_variable(indx, plus_plus=False, save=False), index_of_reference)
+            _type = self.__types[symbol_name]
+            if _type.startswith("REF["):
+                func, indx = self.get_z3_references(_type)
+                index_of_reference = self.get_variable(
+                    func.name(), plus_plus=plus_plus, save=save
+                ).removeprefix(func.name()).replace("_", "")
+                if indx.isnumeric() is True:
+                    return func(indx, index_of_reference)
+                else:
+                    return func(self.get_z3_variable(indx, plus_plus=False, save=False), index_of_reference)
+            elif _type.startswith("REF_STRUCT["):
+                ref_type, referee = _type[11:-1].split(', ')
+                return self.z3_types(ref_type)(
+                    self.get_variable(referee, plus_plus=plus_plus, save=save)
+                )
         else:
             return self.z3_types(self.__types[symbol_name])(
                 self.get_variable(symbol_name, plus_plus=plus_plus, save=save)
             )
 
     def get_z3_all_except_reference_conds(self, symbol_name, plus_plus=False, save=False):
+        if self.__types[symbol_name].startswith('REF_STRUCT'):
+            return BoolVal(True)
+
         if not symbol_name.startswith('REF_'):
             raise NotImplementedError
 
@@ -507,6 +517,14 @@ def p_mapping_assignment(p):
         p[0] = p[0] == p[7]
 
     p[0] = And(p[0], symbol_table_manager.get_z3_all_except_reference_conds(p[1]))
+
+
+def p_struct_ref(p):
+    """expression : ID LPAREN type RPAREN ARROW ID DOT ID"""
+    #                1         3                 6      8
+    p[0] = BoolVal(True)
+    # p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
+    # p[0] = p[0] == symbol_table_manager.get_z3_variable(''.join(p[6:9]), plus_plus=False, save=False)
 
 
 def init_msg(p):
