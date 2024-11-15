@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from functools import cached_property
 from typing import Union, List
@@ -434,7 +435,7 @@ class SolFile:
             cfg_x.add_edge("AFTER_TX", "END_NODE")
             cfg_x.add_edge("AFTER_TX", "AFTER_CREATION")
 
-        utils.log(f"Contract Name: {self.slither.contracts[-1].name}")
+        utils.log(f"Contract Name: {os.path.split(args.contract)[-1]} [{self.slither.contracts[-1].name}]")
         for func in self.slither.contracts[-1].functions:  # TODO Support more contracts
             if func.visibility in ['private', 'internal'] and not (
                     func.name == 'slitherConstructorVariables' or func.name.startswith("constructor")):
