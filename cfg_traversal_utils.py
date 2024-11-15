@@ -223,7 +223,8 @@ class WalkTree:
         variables = self.contract.variables
 
         # The IR variables
-        compiled_pattern = re.compile(r"^(?P<variable_name>\w+)\((?P<variable_type>(\w+)|(mapping\(.*\)))\)\s(=|:=|->)")
+        compiled_pattern = re.compile(
+            r"^(?P<variable_name>\w+)\((?P<variable_type>([\w\.]+)|(mapping\(.*\)))\)\s(=|:=|->)")
         for node in self.contract.cfg.nodes:
             for expr in self.contract.cfg.nodes[node].get("irs", []):
                 # noinspection RegExpRedundantEscape
@@ -233,7 +234,7 @@ class WalkTree:
                     elif rvalue_matched := re.match(
                             r"\w+\(((\w+)|(mapping\(\w+\s=>\s\w+\)))\)\s?->\s?(?P<referee_name>\w+)\[(?P<index>[\w\.]+)]",
                             expr
-                    ):
+                    ):  # Mapping
                         referee_name = rvalue_matched.group('referee_name')
                         indx = rvalue_matched.group('index')
                         try:
@@ -251,7 +252,15 @@ class WalkTree:
                                                                           f"{matched.group('base_reference')}."
                                                                           f"{matched.group('member')}]")
                         else:
-                            pass
+                            variables[matched.group('reference_name')] = (f"REF_REF_STRUCT[{matched.group('type')}, "
+                                                                          f"{matched.group('base_reference')}."
+                                                                          f"{matched.group('member')}]")
+                    elif matched := re.match(
+                            "(?P<reference_name>REF_\w+)\((?P<type>[\.\w]+)\)\s->\s(?P<array_name>\w+)\[(?P<index>\d+)]",
+                            expr):
+                        variables[matched.group('reference_name')] = (f"STRUCT_ARR[{matched.group('type')}, "
+                                                                      f"{matched.group('array_name')}"
+                                                                      f"[{matched.group('index')}]]")
                     else:
                         pass  # TODO ??
                 elif convert_matched := re.match(r"^(?P<variable_name>\w+) = CONVERT (\d+|[\w\.]+) to address$", expr):

@@ -256,13 +256,20 @@ class SymbolTableManager:
                 return self.z3_types(ref_type)(
                     self.get_variable(referee, plus_plus=plus_plus, save=save)
                 )
+            else:
+                ref_type, referee = _type[15:-1].split(', ')
+                referee, member = referee.split('.')
+                referee_type_name = self.__types[referee].split(', ')[1][:-1]
+                return self.z3_types(ref_type)(
+                    self.get_variable(f'{referee_type_name}.{member}', plus_plus=plus_plus, save=save)
+                )
         else:
             return self.z3_types(self.__types[symbol_name])(
                 self.get_variable(symbol_name, plus_plus=plus_plus, save=save)
             )
 
     def get_z3_all_except_reference_conds(self, symbol_name, plus_plus=False, save=False):
-        if self.__types[symbol_name].startswith('REF_STRUCT'):
+        if self.__types[symbol_name].startswith('REF_STRUCT') or self.__types[symbol_name].startswith('REF_REF_STRUCT'):
             return BoolVal(True)
 
         if not symbol_name.startswith('REF_'):
@@ -356,8 +363,12 @@ def p_type(p: yacc.YaccProduction):
             | INTN
             | VOID
             | STRING
-            | ADDRESS"""
-    p[0] = p[1]
+            | ADDRESS
+            | ID DOT ID"""
+    if len(p) == 2:
+        p[0] = p[1]
+    else:  # ID DOT ID
+        p[0] = ''.join(p[1:])
 
 
 def p_return_stmt(p):
@@ -523,8 +534,6 @@ def p_struct_ref(p):
     """expression : ID LPAREN type RPAREN ARROW ID DOT ID"""
     #                1         3                 6      8
     p[0] = BoolVal(True)
-    # p[0] = symbol_table_manager.get_z3_variable(p[1], plus_plus=True, save=True)
-    # p[0] = p[0] == symbol_table_manager.get_z3_variable(''.join(p[6:9]), plus_plus=False, save=False)
 
 
 def init_msg(p):
