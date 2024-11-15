@@ -1,7 +1,9 @@
 import os
 
 if __name__ == '__main__':
-    print(', '.join(["date", "contract_name", "loc", "num_walks", "num_of_cfg_nodes", "exec_time", "heuristic"]))
+    print(', '.join(
+        ["Date", "Smart Contract", "#LoC", "# Generated Walks", "# CFG Nodes", "Execution Time (s)", "Heuristic"]
+    ))
 
     for output in os.listdir('output/'):
         try:

@@ -8,3 +8,6 @@ venv/
 # ply ignores
 *.out
 parsetab.py
+
+.ipynb_checkpoints/*
+results.csv
