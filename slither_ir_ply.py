@@ -256,7 +256,7 @@ class SymbolTableManager:
                 return self.z3_types(ref_type)(
                     self.get_variable(referee, plus_plus=plus_plus, save=save)
                 )
-            else:
+            elif _type.startswith("REF_REF_STRUCT["):
                 ref_type, referee = _type[15:-1].split(', ')
                 referee, member = referee.split('.')
                 referee_type_name = self.__types[referee].split(', ')[1][:-1]
