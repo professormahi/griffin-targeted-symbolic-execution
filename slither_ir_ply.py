@@ -219,15 +219,18 @@ class SymbolTableManager:
                 r"(?P<mapping_to>\w+)\),\s(?P<referee>\w+),\s(?P<index>[\w\.]+)]",
                 variable_type
             )
-            return (
-                Function(
-                    matched.group("referee"),
-                    cls.__z3_sorts(matched.group("mapping_from")),
-                    IntSort(),  # CAUTION: For the SSA
-                    cls.__z3_sorts(matched.group("mapping_to"))
-                ),
-                matched.group("index")
-            )
+            if matched is None:
+                pass  # TODO: e.g., 'REF[mapping(address => mapping(address => bool)), arr, index]'
+            else:
+                return (
+                    Function(
+                        matched.group("referee"),
+                        cls.__z3_sorts(matched.group("mapping_from")),
+                        IntSort(),  # CAUTION: For the SSA
+                        cls.__z3_sorts(matched.group("mapping_to"))
+                    ),
+                    matched.group("index")
+                )
         elif 'address[]' in variable_type:  # TODO: Generalize to any array
             matched = re.match('REF\[address\[],\s(?P<array>\w+),\s(?P<index>[\w.]+)]', variable_type)
             return Function(
